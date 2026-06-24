@@ -1,0 +1,155 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { io, Socket } from "socket.io-client";
+import type {
+  ClientToServerEvents,
+  GameEndPayload,
+  PlayerView,
+  QuestionStartPayload,
+  RevealAnswerPayload,
+  RoomPublicState,
+  RoundResultPayload,
+  ServerToClientEvents,
+} from "./types";
+
+type ClientSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
+
+export type ConnStatus = "connecting" | "joining" | "joined" | "error";
+
+export interface GameSocketState {
+  status: ConnStatus;
+  error: string | null;
+  selfId: string | null;
+  room: RoomPublicState | null;
+  players: PlayerView[];
+  question: QuestionStartPayload | null;
+  reveal: RevealAnswerPayload | null;
+  roundResult: RoundResultPayload | null;
+  gameEnd: GameEndPayload | null;
+}
+
+export interface GameSocketApi extends GameSocketState {
+  startGame: () => void;
+  sendMove: (x: number, y: number, z: number, rotationY: number) => void;
+}
+
+export function useGameSocket(
+  roomId: string,
+  nickname: string,
+  color: number
+): GameSocketApi {
+  const socketRef = useRef<ClientSocket | null>(null);
+
+  const [status, setStatus] = useState<ConnStatus>("connecting");
+  const [error, setError] = useState<string | null>(null);
+  const [selfId, setSelfId] = useState<string | null>(null);
+  const [room, setRoom] = useState<RoomPublicState | null>(null);
+  const [players, setPlayers] = useState<PlayerView[]>([]);
+  const [question, setQuestion] = useState<QuestionStartPayload | null>(null);
+  const [reveal, setReveal] = useState<RevealAnswerPayload | null>(null);
+  const [roundResult, setRoundResult] = useState<RoundResultPayload | null>(
+    null
+  );
+  const [gameEnd, setGameEnd] = useState<GameEndPayload | null>(null);
+
+  useEffect(() => {
+    if (!roomId || !nickname) return;
+
+    // Connect to the standalone socket server (Render). Falls back to same
+    // origin for local all-in-one setups.
+    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || undefined;
+    const socket: ClientSocket = io(socketUrl, { path: "/socket.io" });
+    socketRef.current = socket;
+
+    socket.on("connect", () => {
+      setStatus("joining");
+      socket.emit("joinRoom", { roomId, nickname, color });
+    });
+
+    socket.on("joined", (state) => {
+      setSelfId(state.selfId);
+      setRoom(state);
+      setPlayers(state.players);
+      setStatus("joined");
+    });
+
+    socket.on("joinError", (message) => {
+      setError(message);
+      setStatus("error");
+    });
+
+    socket.on("roomState", (state) => {
+      setRoom(state);
+      setPlayers(state.players);
+    });
+
+    socket.on("gameStart", () => {
+      setQuestion(null);
+      setReveal(null);
+      setRoundResult(null);
+      setGameEnd(null);
+    });
+
+    socket.on("questionStart", (payload) => {
+      setQuestion(payload);
+      setReveal(null);
+      setRoundResult(null);
+    });
+
+    socket.on("playersUpdate", (list) => setPlayers(list));
+
+    socket.on("revealAnswer", (payload) => {
+      setReveal(payload);
+      // Reflect eliminations so the renderer can drop those characters.
+      setPlayers((prev) =>
+        prev.map((p) =>
+          payload.eliminatedPlayerIds.includes(p.id)
+            ? { ...p, alive: false }
+            : p
+        )
+      );
+    });
+    socket.on("roundResult", (payload) => setRoundResult(payload));
+    socket.on("nextRound", () => {
+      setReveal(null);
+      setRoundResult(null);
+    });
+    socket.on("gameEnd", (payload) => setGameEnd(payload));
+
+    socket.on("disconnect", () => {
+      setStatus((s) => (s === "joined" ? "connecting" : s));
+    });
+
+    return () => {
+      socket.removeAllListeners();
+      socket.disconnect();
+      socketRef.current = null;
+    };
+  }, [roomId, nickname, color]);
+
+  const startGame = useCallback(() => {
+    socketRef.current?.emit("startGame");
+  }, []);
+
+  const sendMove = useCallback(
+    (x: number, y: number, z: number, rotationY: number) => {
+      socketRef.current?.emit("playerMove", { x, y, z, rotationY });
+    },
+    []
+  );
+
+  return {
+    status,
+    error,
+    selfId,
+    room,
+    players,
+    question,
+    reveal,
+    roundResult,
+    gameEnd,
+    startGame,
+    sendMove,
+  };
+}

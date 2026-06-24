@@ -1,0 +1,18 @@
+# Render Blueprint for the standalone Socket.IO game server.
+# The Next.js web app is deployed separately on Vercel.
+services:
+  - type: web
+    name: quiz-survival-socket
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm run socket:start
+    healthCheckPath: /health
+    envVars:
+      - key: SUPABASE_URL
+        sync: false # set in dashboard (your Supabase project URL)
+      - key: SUPABASE_ANON_KEY
+        sync: false # set in dashboard (Supabase anon key)
+      - key: CLIENT_ORIGIN
+        sync: false # your Vercel URL, e.g. https://your-app.vercel.app (or *)
+      # PORT is provided by Render automatically.
