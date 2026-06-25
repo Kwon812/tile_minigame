@@ -50,6 +50,19 @@ const GRID_ROWS = 8;
 const TILE_SIZE = 3;
 
 /**
+ * Grid size for a given round — the board shrinks one tile per side each round
+ * to ramp up pressure, down to a floor that still fits every answer zone.
+ */
+export function roundGrid(round: number, optionCount: number) {
+  const minSide = Math.max(optionCount, 4);
+  const shrink = Math.max(0, round - 1);
+  return {
+    cols: Math.max(minSide, GRID_COLS - shrink),
+    rows: Math.max(minSide, GRID_ROWS - shrink),
+  };
+}
+
+/**
  * Build a shuffled tile→zone map: every zone gets a roughly equal number of
  * tiles, scattered across the whole grid (not in columns). Guarantees at least
  * one tile per zone so a correct tile always exists. Row-major order.

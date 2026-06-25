@@ -12,6 +12,7 @@ import {
   INTERMISSION_MS,
   arenaBounds,
   generateTileZones,
+  roundGrid,
   zoneFromPosition,
 } from "../lib/gameConfig";
 import { store, toPlayerView, toPublicState, type RoomRuntime } from "./store";
@@ -27,12 +28,16 @@ function alivePlayers(room: RoomRuntime) {
 
 /** Place every still-alive player at a neutral back-row spawn for a fresh round. */
 function respawnAlive(room: RoomRuntime) {
-  const { maxZ } = arenaBounds(room.arena);
+  const { minX, maxX, maxZ } = arenaBounds(room.arena);
+  const half = room.arena.tileSize / 2;
   const alive = alivePlayers(room);
   alive.forEach((p, i) => {
-    // Spread players along X near center so they don't stack.
-    p.x = (i - (alive.length - 1) / 2) * 0.8;
-    p.z = maxZ - room.arena.tileSize / 2;
+    // Spread players along X near center (clamped to the board, which shrinks).
+    p.x = Math.min(
+      maxX - half,
+      Math.max(minX + half, (i - (alive.length - 1) / 2) * 0.8)
+    );
+    p.z = maxZ - half;
     p.y = 0;
     p.rotationY = 0;
   });
@@ -60,13 +65,16 @@ function beginRound(io: IO, roomId: string) {
   room.gameState = "question";
 
   const quiz = room.questionList[room.currentQuestionIndex];
-  // Shape the board to THIS question's option count (questions may differ) and
-  // reshuffle the colored tiles each round so positions can't be memorized.
+  // Shape the board to THIS question's option count (questions may differ),
+  // shrink it as rounds progress, and reshuffle the colored tiles each round.
   const optionCount = quiz.options.length;
+  const { cols, rows } = roundGrid(room.round, optionCount);
   room.arena = {
     ...room.arena,
     optionCount,
-    tileZones: generateTileZones(room.arena.cols, room.arena.rows, optionCount),
+    cols,
+    rows,
+    tileZones: generateTileZones(cols, rows, optionCount),
   };
   respawnAlive(room);
 
