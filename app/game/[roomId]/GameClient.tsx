@@ -156,6 +156,14 @@ export default function GameClient({
     else sfx.go();
   }, [count]);
 
+  // Falling whoosh the moment I drop into a hole mid-round.
+  const prevAlive = useRef(true);
+  useEffect(() => {
+    const aliveNow = !!self?.alive;
+    if (prevAlive.current && !aliveNow && phase === "question") sfx.eliminate();
+    prevAlive.current = aliveNow;
+  }, [self?.alive, phase]);
+
   // Game over: fanfare or losing tone.
   useEffect(() => {
     if (!gameEnd) return;
