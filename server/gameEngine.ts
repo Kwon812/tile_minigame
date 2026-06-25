@@ -13,6 +13,7 @@ import {
   arenaBounds,
   generateTileZones,
   roundGrid,
+  roundHoleRatio,
   zoneFromPosition,
 } from "../lib/gameConfig";
 import { store, toPlayerView, toPublicState, type RoomRuntime } from "./store";
@@ -74,7 +75,12 @@ function beginRound(io: IO, roomId: string) {
     optionCount,
     cols,
     rows,
-    tileZones: generateTileZones(cols, rows, optionCount),
+    tileZones: generateTileZones(
+      cols,
+      rows,
+      optionCount,
+      roundHoleRatio(room.round)
+    ),
   };
   respawnAlive(room);
 

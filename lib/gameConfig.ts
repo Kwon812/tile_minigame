@@ -49,28 +49,38 @@ const GRID_COLS = 8;
 const GRID_ROWS = 8;
 const TILE_SIZE = 3;
 
+/** Tile value meaning "no floor here" (a hole you must not be standing on). */
+export const HOLE_ZONE = -1;
+
 /**
- * Grid size for a given round — the board shrinks one tile per side each round
+ * Grid size for a given round — the board shrinks two tiles per side each round
  * to ramp up pressure, down to a floor that still fits every answer zone.
  */
 export function roundGrid(round: number, optionCount: number) {
   const minSide = Math.max(optionCount, 4);
-  const shrink = Math.max(0, round - 1);
+  const shrink = 2 * Math.max(0, round - 1);
   return {
     cols: Math.max(minSide, GRID_COLS - shrink),
     rows: Math.max(minSide, GRID_ROWS - shrink),
   };
 }
 
+/** Fraction of tiles punched out as holes, growing a little each round. */
+export function roundHoleRatio(round: number) {
+  return Math.min(0.3, 0.12 + (round - 1) * 0.05);
+}
+
 /**
  * Build a shuffled tile→zone map: every zone gets a roughly equal number of
- * tiles, scattered across the whole grid (not in columns). Guarantees at least
- * one tile per zone so a correct tile always exists. Row-major order.
+ * tiles, scattered across the grid (not in columns), with some tiles punched
+ * out as holes (HOLE_ZONE). Guarantees ≥1 non-hole tile per zone so a correct
+ * tile always exists. Row-major order.
  */
 export function generateTileZones(
   cols: number,
   rows: number,
-  optionCount: number
+  optionCount: number,
+  holeRatio = 0
 ): number[] {
   const total = cols * rows;
   const zones: number[] = [];
@@ -79,6 +89,25 @@ export function generateTileZones(
   for (let i = total - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [zones[i], zones[j]] = [zones[j], zones[i]];
+  }
+
+  if (holeRatio > 0) {
+    const counts = new Array(optionCount).fill(0);
+    for (const z of zones) counts[z] += 1;
+    let holes = Math.floor(total * holeRatio);
+    const order = [...Array(total).keys()];
+    for (let i = order.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [order[i], order[j]] = [order[j], order[i]];
+    }
+    for (const idx of order) {
+      if (holes <= 0) break;
+      const z = zones[idx];
+      if (counts[z] <= 1) continue; // keep at least one safe tile per zone
+      zones[idx] = HOLE_ZONE;
+      counts[z] -= 1;
+      holes -= 1;
+    }
   }
   return zones;
 }

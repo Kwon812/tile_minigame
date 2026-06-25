@@ -8,6 +8,7 @@ import {
   PLAYER_SPEED,
   PLAYER_COLORS,
   ZONE_COLORS,
+  HOLE_ZONE,
   arenaBounds,
   tileCenter,
 } from "@/lib/gameConfig";
@@ -62,8 +63,9 @@ function Tiles({
     }[] = [];
     for (let row = 0; row < arena.rows; row++) {
       for (let col = 0; col < arena.cols; col++) {
-        const { x, z } = tileCenter(col, row, arena);
         const zone = arena.tileZones[row * arena.cols + col] ?? 0;
+        if (zone === HOLE_ZONE) continue; // hole: render nothing (a gap)
+        const { x, z } = tileCenter(col, row, arena);
         out.push({ col, row, x, z, zone });
       }
     }
