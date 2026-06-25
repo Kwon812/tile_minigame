@@ -268,7 +268,7 @@ export default function GameClient({
         {/* Top bar */}
         <div className="flex items-start justify-between">
           <div className="rounded-lg bg-black/50 px-3 py-2 text-sm backdrop-blur">
-            <div className="font-semibold">방 {room.roomId}</div>
+            <div className="font-semibold">{room.title}</div>
             <div className="text-slate-300">테마: {room.theme}</div>
             <div className="text-slate-300">
               생존 {aliveCount} / {players.length}명
@@ -354,10 +354,10 @@ export default function GameClient({
       {phase === "waiting" && !gameEnd && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur">
           <div className="w-full max-w-md rounded-2xl bg-slate-900 p-6 text-white shadow-xl">
-            <h2 className="mb-1 text-2xl font-bold">대기실</h2>
-            <p className="mb-4 text-sm text-slate-400">
-              테마 {room.theme} · 최대 {room.maxPlayers}명 · {room.totalRounds}
-              라운드
+            <h2 className="text-2xl font-bold">{room.title}</h2>
+            <p className="mb-4 mt-1 text-sm text-slate-400">
+              대기실 · 테마 {room.theme} · 최대 {room.maxPlayers}명 ·{" "}
+              {room.totalRounds}라운드
             </p>
             <div className="mb-4 max-h-48 space-y-1 overflow-auto">
               {players.map((p) => {

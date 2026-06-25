@@ -7,6 +7,7 @@ import { PLAYER_COLORS } from "@/lib/gameConfig";
 
 interface RoomInfo {
   roomId: string;
+  title: string;
   theme: string;
   gameState: string;
   players: number;
@@ -124,14 +125,10 @@ export default function Home() {
                   className="flex items-center justify-between gap-3 rounded-xl bg-slate-800/60 p-3"
                 >
                   <div className="min-w-0">
-                    <p className="truncate font-medium">
-                      <span className="text-fuchsia-300">{r.theme}</span>{" "}
-                      <span className="text-xs text-slate-400">
-                        {r.questionCount}문제
-                      </span>
-                    </p>
-                    <p className="font-mono text-xs text-slate-500">
-                      {r.roomId} · {r.players}/{r.maxPlayers}명
+                    <p className="truncate font-medium">{r.title}</p>
+                    <p className="truncate text-xs text-slate-400">
+                      <span className="text-fuchsia-300">{r.theme}</span> ·{" "}
+                      {r.questionCount}문제 · {r.players}/{r.maxPlayers}명
                     </p>
                   </div>
                   <button

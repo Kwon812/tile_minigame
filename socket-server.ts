@@ -89,6 +89,7 @@ async function main() {
         .sort((a, b) => b.createdAt - a.createdAt)
         .map((r) => ({
           roomId: r.roomId,
+          title: r.title,
           theme: r.theme,
           gameState: r.gameState,
           players: Object.keys(r.players).length,
@@ -113,6 +114,7 @@ async function main() {
       try {
         const body = (await readJsonBody(req)) as Record<string, unknown>;
         const room = await createGameRoom({
+          title: typeof body.title === "string" ? body.title : undefined,
           theme: typeof body.theme === "string" ? body.theme : "",
           questionCount:
             typeof body.questionCount === "number"
@@ -123,6 +125,7 @@ async function main() {
         });
         sendJson(res, 201, {
           roomId: room.roomId,
+          title: room.title,
           theme: room.theme,
           maxPlayers: room.maxPlayers,
           questionCount: room.questionList.length,

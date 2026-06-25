@@ -18,6 +18,7 @@ import { makeArena } from "../lib/gameConfig";
 
 export interface RoomRuntime {
   roomId: string;
+  title: string;
   theme: string;
   maxPlayers: number;
   /** Full quizzes incl. correct answers — server-only, never sent to clients. */
@@ -43,6 +44,7 @@ class GameStore {
   private counter = 0;
 
   createRoom(opts: {
+    title?: string;
     theme: string;
     maxPlayers: number;
     questionList: Quiz[];
@@ -58,6 +60,7 @@ class GameStore {
 
     const room: RoomRuntime = {
       roomId,
+      title: opts.title?.trim() || opts.theme,
       theme: opts.theme,
       maxPlayers: opts.maxPlayers,
       questionList: opts.questionList,
@@ -107,6 +110,7 @@ export function toPlayerView(p: Player): PlayerView {
 export function toPublicState(room: RoomRuntime): RoomPublicState {
   return {
     roomId: room.roomId,
+    title: room.title,
     theme: room.theme,
     maxPlayers: room.maxPlayers,
     round: room.round,

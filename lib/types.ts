@@ -74,6 +74,7 @@ export interface ArenaConfig {
 
 export interface RoomPublicState {
   roomId: string;
+  title: string;
   theme: string;
   maxPlayers: number;
   round: number;

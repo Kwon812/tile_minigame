@@ -14,6 +14,7 @@ export class CreateGameError extends Error {
 }
 
 export interface CreateGameInput {
+  title?: string;
   theme: string;
   questionCount?: number;
   maxPlayers?: number;
@@ -46,5 +47,5 @@ export async function createGameRoom(
   const shuffled = [...quizzes].sort(() => Math.random() - 0.5);
   const questionList = shuffled.slice(0, Math.max(1, questionCount));
 
-  return store.createRoom({ theme, maxPlayers, questionList });
+  return store.createRoom({ title: input.title, theme, maxPlayers, questionList });
 }

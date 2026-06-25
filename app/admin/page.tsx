@@ -35,14 +35,16 @@ export default function AdminPage() {
     is_active: boolean;
   } | null>(null);
 
-  // game creation
+  // game creation (string-backed so the fields can be cleared/retyped freely)
+  const [gameTitle, setGameTitle] = useState("");
   const [gameTheme, setGameTheme] = useState("science");
-  const [questionCount, setQuestionCount] = useState(10);
-  const [maxPlayers, setMaxPlayers] = useState(30);
+  const [questionCount, setQuestionCount] = useState("10");
+  const [maxPlayers, setMaxPlayers] = useState("30");
   // 소켓 서버의 실제 활성 방 목록 (새로고침해도 유지됨).
   const [rooms, setRooms] = useState<
     {
       roomId: string;
+      title: string;
       theme: string;
       gameState: string;
       players: number;
@@ -105,7 +107,7 @@ export default function AdminPage() {
   }, [quizzes]);
 
   useEffect(() => {
-    setQuestionCount(availableCount > 0 ? availableCount : 1);
+    setQuestionCount(String(availableCount > 0 ? availableCount : 1));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameTheme, availableCount]);
 
@@ -196,17 +198,29 @@ export default function AdminPage() {
     if (creating) return;
     setCreating(true);
     try {
+      // Clamp on submit: question count to [1, available], players to >= 1.
+      const qc = Math.min(
+        Math.max(1, parseInt(questionCount, 10) || 1),
+        Math.max(1, availableCount)
+      );
+      const mp = Math.max(1, parseInt(maxPlayers, 10) || 1);
       const res = await fetch("/api/admin/game/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ theme: gameTheme, questionCount, maxPlayers }),
+        body: JSON.stringify({
+          title: gameTitle.trim() || gameTheme,
+          theme: gameTheme,
+          questionCount: qc,
+          maxPlayers: mp,
+        }),
       });
       const d = await res.json();
       if (!res.ok) {
         setMsg(`게임 생성 오류: ${d.error}`);
         return;
       }
-      setMsg(`방 ${d.roomId} 생성됨`);
+      setMsg(`"${d.title}" 방 생성됨 (${d.roomId})`);
+      setGameTitle("");
       // 서버 기준 실제 방 목록을 다시 불러온다(새로고침해도 유지됨).
       loadRooms();
     } catch (err) {
@@ -236,6 +250,21 @@ export default function AdminPage() {
         <section className="rounded-2xl bg-slate-900 p-6">
           <h2 className="mb-4 text-xl font-semibold">게임 생성</h2>
           <form onSubmit={createGame} className="space-y-4">
+            <div className="text-sm">
+              <span className="mb-1 block text-slate-400">
+                방 제목{" "}
+                <span className="text-xs text-slate-500">
+                  (비우면 테마 이름 사용)
+                </span>
+              </span>
+              <input
+                value={gameTitle}
+                onChange={(e) => setGameTitle(e.target.value)}
+                maxLength={40}
+                placeholder="예: 5학년 2반 미디어 퀴즈"
+                className="w-full max-w-md rounded-lg bg-slate-800 px-3 py-2"
+              />
+            </div>
             <div className="text-sm">
               <span className="mb-2 block text-slate-400">테마</span>
               {themes.length === 0 ? (
@@ -272,31 +301,25 @@ export default function AdminPage() {
                 문제 개수 (최대 {availableCount})
               </span>
               <input
-                type="number"
-                min={1}
-                max={availableCount || 1}
+                type="text"
+                inputMode="numeric"
                 value={questionCount}
                 onChange={(e) =>
-                  setQuestionCount(
-                    Math.min(
-                      Math.max(1, Number(e.target.value) || 1),
-                      availableCount || 1
-                    )
-                  )
+                  setQuestionCount(e.target.value.replace(/[^0-9]/g, ""))
                 }
-                className="w-24 rounded-lg bg-slate-800 px-3 py-2 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                className="w-24 rounded-lg bg-slate-800 px-3 py-2"
               />
             </label>
             <label className="text-sm">
               <span className="mb-1 block text-slate-400">최대 인원</span>
               <input
-                type="number"
-                min={1}
+                type="text"
+                inputMode="numeric"
                 value={maxPlayers}
                 onChange={(e) =>
-                  setMaxPlayers(Math.max(1, Number(e.target.value) || 1))
+                  setMaxPlayers(e.target.value.replace(/[^0-9]/g, ""))
                 }
-                className="w-24 rounded-lg bg-slate-800 px-3 py-2 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                className="w-24 rounded-lg bg-slate-800 px-3 py-2"
               />
             </label>
             <button
@@ -363,7 +386,8 @@ export default function AdminPage() {
                 </div>
               )}
               <p className="mt-2 text-xs text-slate-500">
-                이 중 무작위 {questionCount}문제가 게임에 사용됩니다.
+                이 중 무작위 {questionCount || availableCount}문제가 게임에
+                사용됩니다.
               </p>
             </div>
           )}
@@ -392,20 +416,23 @@ export default function AdminPage() {
                   className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-800 p-3 text-sm"
                 >
                   <div>
-                    <span className="font-mono text-sky-300">{r.roomId}</span>
-                    <span
-                      className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                        r.gameState === "waiting"
-                          ? "bg-amber-600/30 text-amber-300"
-                          : r.gameState === "ended"
-                          ? "bg-slate-600 text-slate-300"
-                          : "bg-green-600/30 text-green-300"
-                      }`}
-                    >
-                      {r.gameState}
-                    </span>
-                    <span className="ml-2 text-xs text-slate-400">
-                      {r.theme} · {r.questionCount}문제 · 인원 {r.players}/
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold">{r.title}</span>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                          r.gameState === "waiting"
+                            ? "bg-amber-600/30 text-amber-300"
+                            : r.gameState === "ended"
+                            ? "bg-slate-600 text-slate-300"
+                            : "bg-green-600/30 text-green-300"
+                        }`}
+                      >
+                        {r.gameState}
+                      </span>
+                    </div>
+                    <span className="text-xs text-slate-400">
+                      <span className="font-mono text-sky-300">{r.roomId}</span>{" "}
+                      · {r.theme} · {r.questionCount}문제 · 인원 {r.players}/
                       {r.maxPlayers}
                     </span>
                   </div>
