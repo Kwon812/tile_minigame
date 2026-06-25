@@ -95,6 +95,9 @@ export function generateTileZones(
     const counts = new Array(optionCount).fill(0);
     for (const z of zones) counts[z] += 1;
     let holes = Math.floor(total * holeRatio);
+    // Never punch holes in the back row (rows-1) — that's the spawn line, so
+    // players never start on a hole.
+    const spawnRowStart = (rows - 1) * cols;
     const order = [...Array(total).keys()];
     for (let i = order.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -102,6 +105,7 @@ export function generateTileZones(
     }
     for (const idx of order) {
       if (holes <= 0) break;
+      if (idx >= spawnRowStart) continue; // protect the spawn row
       const z = zones[idx];
       if (counts[z] <= 1) continue; // keep at least one safe tile per zone
       zones[idx] = HOLE_ZONE;
