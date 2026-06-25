@@ -8,7 +8,7 @@ const EMPTY_FORM = {
   question: "",
   options: ["", "", "", ""],
   correct_answer: 0,
-  theme: "science",
+  theme: "딥페이크",
   difficulty: "normal",
 };
 
@@ -51,6 +51,7 @@ export default function AdminPage() {
       round: number;
     }[]
   >([]);
+  const [creating, setCreating] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -192,19 +193,29 @@ export default function AdminPage() {
 
   async function createGame(e: React.FormEvent) {
     e.preventDefault();
-    const res = await fetch("/api/admin/game/create", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ theme: gameTheme, questionCount, maxPlayers }),
-    });
-    const d = await res.json();
-    if (!res.ok) {
-      setMsg(`게임 생성 오류: ${d.error}`);
-      return;
+    if (creating) return;
+    setCreating(true);
+    try {
+      const res = await fetch("/api/admin/game/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ theme: gameTheme, questionCount, maxPlayers }),
+      });
+      const d = await res.json();
+      if (!res.ok) {
+        setMsg(`게임 생성 오류: ${d.error}`);
+        return;
+      }
+      setMsg(`방 ${d.roomId} 생성됨`);
+      // 서버 기준 실제 방 목록을 다시 불러온다(새로고침해도 유지됨).
+      loadRooms();
+    } catch (err) {
+      setMsg(
+        `게임 생성 오류: ${err instanceof Error ? err.message : "unknown"}`
+      );
+    } finally {
+      setCreating(false);
     }
-    setMsg(`방 ${d.roomId} 생성됨`);
-    // 서버 기준 실제 방 목록을 다시 불러온다(새로고침해도 유지됨).
-    loadRooms();
   }
 
   return (
@@ -288,8 +299,11 @@ export default function AdminPage() {
                 className="w-24 rounded-lg bg-slate-800 px-3 py-2 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               />
             </label>
-            <button className="rounded-lg bg-fuchsia-600 px-5 py-2 font-semibold transition hover:bg-fuchsia-500">
-              생성
+            <button
+              disabled={creating || themes.length === 0}
+              className="rounded-lg bg-fuchsia-600 px-5 py-2 font-semibold transition hover:bg-fuchsia-500 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {creating ? "생성중…" : "생성"}
             </button>
             </div>
           </form>

@@ -105,6 +105,8 @@ export interface QuestionStartPayload {
   question: PublicQuestion;
   /** Round duration in milliseconds. */
   duration: number;
+  /** Epoch ms when movement/timer begins (after the 3·2·1 countdown). */
+  startsAt: number;
   /** Absolute end timestamp (ms epoch) so clients share one countdown. */
   endsAt: number;
   arena: ArenaConfig;

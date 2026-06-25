@@ -1,11 +1,44 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Canvas } from "@react-three/fiber";
 import Scene from "./Arena";
 import { useGameSocket } from "@/lib/useGameSocket";
 import { PLAYER_COLORS, ZONE_COLORS } from "@/lib/gameConfig";
+import { sfx, setMuted } from "@/lib/sound";
+
+function Confetti() {
+  const pieces = useMemo(
+    () =>
+      Array.from({ length: 60 }, (_, i) => ({
+        left: Math.random() * 100,
+        delay: Math.random() * 0.8,
+        duration: 2.2 + Math.random() * 1.8,
+        color: PLAYER_COLORS[i % PLAYER_COLORS.length],
+        rot: Math.random() * 360,
+      })),
+    []
+  );
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden">
+      {pieces.map((p, i) => (
+        <span
+          key={i}
+          className="confetti-piece"
+          style={{
+            left: `${p.left}%`,
+            background: p.color,
+            animationDelay: `${p.delay}s`,
+            animationDuration: `${p.duration}s`,
+            transform: `rotate(${p.rot}deg)`,
+            borderRadius: i % 2 ? "50%" : "2px",
+          }}
+        />
+      ))}
+    </div>
+  );
+}
 
 function useCountdown(endsAt: number | undefined) {
   const [remaining, setRemaining] = useState(0);
@@ -21,6 +54,27 @@ function useCountdown(endsAt: number | undefined) {
     return () => clearInterval(id);
   }, [endsAt]);
   return remaining;
+}
+
+/** Pre-round 3·2·1·GO. Returns 3/2/1 while counting, 0 during the GO flash, null otherwise. */
+function useRoundStart(startsAt: number | undefined) {
+  const [count, setCount] = useState<number | null>(null);
+  useEffect(() => {
+    if (!startsAt) {
+      setCount(null);
+      return;
+    }
+    const update = () => {
+      const ms = startsAt - Date.now();
+      if (ms > 0) setCount(Math.ceil(ms / 1000));
+      else if (ms > -800) setCount(0);
+      else setCount(null);
+    };
+    update();
+    const id = setInterval(update, 100);
+    return () => clearInterval(id);
+  }, [startsAt]);
+  return count;
 }
 
 export default function GameClient({
@@ -47,6 +101,8 @@ export default function GameClient({
   } = game;
 
   const remaining = useCountdown(question?.endsAt);
+  const count = useRoundStart(question?.startsAt);
+  const inCountdown = count !== null && count > 0;
 
   const self = players.find((p) => p.id === selfId) ?? null;
   const aliveCount = players.filter((p) => p.alive).length;
@@ -62,7 +118,11 @@ export default function GameClient({
     ? "question"
     : "waiting";
   const canMove =
-    phase === "question" && reveal === null && !!self?.alive && !gameEnd;
+    phase === "question" &&
+    reveal === null &&
+    !!self?.alive &&
+    !gameEnd &&
+    !inCountdown;
 
   const options = useMemo(
     () => question?.question.options ?? [],
@@ -73,6 +133,55 @@ export default function GameClient({
   // questionStart). room.arena is only the initial/waiting layout — using it
   // would desync the tiles you see from the tiles the server judges.
   const arena = question?.arena ?? room?.arena ?? null;
+
+  // ---- game juice: sound + flashes ----
+  const [muted, setMutedState] = useState(false);
+  const [revealAt, setRevealAt] = useState<number | null>(null);
+
+  // Answer reveal: trigger camera impact + chime (+ whoosh if anyone dropped).
+  useEffect(() => {
+    if (reveal) {
+      setRevealAt(Date.now());
+      sfx.reveal();
+      if (reveal.eliminatedPlayerIds.length > 0) sfx.eliminate();
+    } else {
+      setRevealAt(null);
+    }
+  }, [reveal]);
+
+  // 3·2·1 countdown beeps, then "GO".
+  useEffect(() => {
+    if (count === null) return;
+    if (count > 0) sfx.tick();
+    else sfx.go();
+  }, [count]);
+
+  // Game over: fanfare or losing tone.
+  useEffect(() => {
+    if (!gameEnd) return;
+    if (gameEnd.winners.length > 0) sfx.win();
+    else sfx.lose();
+  }, [gameEnd]);
+
+  // Countdown ticks for the final seconds.
+  useEffect(() => {
+    if (phase === "question" && remaining > 0 && remaining <= 5) sfx.tick();
+  }, [remaining, phase]);
+
+  const lowTime = phase === "question" && remaining > 0 && remaining <= 5;
+  const eliminatedThisRound = reveal?.eliminatedPlayerIds.length ?? 0;
+
+  const toggleMute = () => {
+    const next = !muted;
+    setMutedState(next);
+    setMuted(next);
+    sfx.unlock();
+  };
+
+  const handleStart = () => {
+    sfx.unlock();
+    startGame();
+  };
 
   if (status === "error") {
     return (
@@ -102,9 +211,57 @@ export default function GameClient({
           selfId={selfId}
           canMove={canMove}
           correctAnswer={reveal ? reveal.correctAnswer : null}
+          revealAt={revealAt}
           onMove={sendMove}
         />
       </Canvas>
+
+      {/* Low-time red vignette */}
+      {lowTime && (
+        <div
+          className="pointer-events-none absolute inset-0 z-10 animate-pulse"
+          style={{ boxShadow: "inset 0 0 140px 30px rgba(239,68,68,0.55)" }}
+        />
+      )}
+
+      {/* Round-start 3·2·1·GO countdown */}
+      {count !== null && phase !== "ended" && (
+        <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center">
+          <div key={count} className="go-pop text-center">
+            {question && (
+              <div className="mb-1 text-2xl font-bold text-sky-300">
+                라운드 {question.round} / {question.totalRounds}
+              </div>
+            )}
+            {count > 0 ? (
+              <div className="text-[10rem] font-extrabold leading-none text-white drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)]">
+                {count}
+              </div>
+            ) : (
+              <div className="text-8xl font-extrabold text-sky-300 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
+                GO!
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Answer reveal banner */}
+      {phase === "reveal" && (
+        <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center">
+          <div className="banner-pop rounded-2xl bg-black/70 px-8 py-4 text-center backdrop-blur">
+            {eliminatedThisRound > 0 ? (
+              <span className="text-4xl font-extrabold text-red-400">
+                💥 {eliminatedThisRound}명 탈락!
+              </span>
+            ) : (
+              <span className="text-4xl font-extrabold text-green-400">
+                ✅ 전원 생존!
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ---- HUD ---- */}
       <div className="pointer-events-none absolute inset-0 z-20 flex flex-col p-4 text-white">
@@ -118,20 +275,29 @@ export default function GameClient({
             </div>
           </div>
 
-          {phase === "question" && question && (
-            <div className="rounded-lg bg-black/50 px-4 py-2 text-center backdrop-blur">
-              <div className="text-xs text-slate-300">
-                라운드 {question.round} / {question.totalRounds}
+          <div className="flex flex-col items-end gap-2">
+            <button
+              onClick={toggleMute}
+              className="pointer-events-auto rounded-lg bg-black/50 px-3 py-1.5 text-sm backdrop-blur transition hover:bg-black/70"
+              aria-label="소리 켜기/끄기"
+            >
+              {muted ? "🔇" : "🔊"}
+            </button>
+            {phase === "question" && question && !inCountdown && (
+              <div className="rounded-lg bg-black/50 px-4 py-2 text-center backdrop-blur">
+                <div className="text-xs text-slate-300">
+                  라운드 {question.round} / {question.totalRounds}
+                </div>
+                <div
+                  className={`text-3xl font-bold ${
+                    remaining <= 5 ? "animate-pulse text-red-400" : "text-sky-300"
+                  }`}
+                >
+                  {remaining}s
+                </div>
               </div>
-              <div
-                className={`text-3xl font-bold ${
-                  remaining <= 5 ? "text-red-400" : "text-sky-300"
-                }`}
-              >
-                {remaining}s
-              </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Question banner */}
@@ -229,7 +395,7 @@ export default function GameClient({
               )}
             </div>
             <button
-              onClick={startGame}
+              onClick={handleStart}
               className="w-full rounded-lg bg-sky-600 py-3 font-semibold transition hover:bg-sky-500"
             >
               게임 시작
@@ -244,7 +410,8 @@ export default function GameClient({
       {/* Game over overlay */}
       {gameEnd && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur">
-          <div className="w-full max-w-md rounded-2xl bg-slate-900 p-8 text-center text-white shadow-xl">
+          {gameEnd.winners.length > 0 && <Confetti />}
+          <div className="relative w-full max-w-md rounded-2xl bg-slate-900 p-8 text-center text-white shadow-xl">
             <h2 className="mb-2 text-3xl font-bold">게임 종료</h2>
             {gameEnd.winners.length === 1 ? (
               <p className="mb-6 text-xl">

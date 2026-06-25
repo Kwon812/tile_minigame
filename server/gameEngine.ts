@@ -8,6 +8,7 @@ import type {
 } from "../lib/types";
 import {
   ROUND_DURATION_MS,
+  COUNTDOWN_MS,
   INTERMISSION_MS,
   arenaBounds,
   generateTileZones,
@@ -69,7 +70,10 @@ function beginRound(io: IO, roomId: string) {
   };
   respawnAlive(room);
 
-  const endsAt = Date.now() + ROUND_DURATION_MS;
+  // 3·2·1 countdown, then the round timer runs for ROUND_DURATION_MS.
+  const startsAt = Date.now() + COUNTDOWN_MS;
+  const endsAt = startsAt + ROUND_DURATION_MS;
+  room.startsAt = startsAt;
   room.endsAt = endsAt;
 
   io.to(roomId).emit("questionStart", {
@@ -77,6 +81,7 @@ function beginRound(io: IO, roomId: string) {
     totalRounds: room.questionList.length,
     question: { question: quiz.question, options: quiz.options }, // no answer!
     duration: ROUND_DURATION_MS,
+    startsAt,
     endsAt,
     arena: room.arena,
   });
@@ -87,7 +92,10 @@ function beginRound(io: IO, roomId: string) {
   );
 
   if (room.timer) clearTimeout(room.timer);
-  room.timer = setTimeout(() => endRound(io, roomId), ROUND_DURATION_MS);
+  room.timer = setTimeout(
+    () => endRound(io, roomId),
+    COUNTDOWN_MS + ROUND_DURATION_MS
+  );
 }
 
 function endRound(io: IO, roomId: string) {

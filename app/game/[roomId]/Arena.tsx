@@ -23,6 +23,8 @@ export interface SceneProps {
   canMove: boolean;
   /** Correct zone index once revealed, else null. */
   correctAnswer: number | null;
+  /** Timestamp (ms) the answer was revealed, for the camera impact effect. */
+  revealAt: number | null;
   onMove: (x: number, y: number, z: number, rotationY: number) => void;
 }
 
@@ -174,7 +176,10 @@ function RemotePlayer({ player }: { player: PlayerView }) {
   // and fight the interpolation.
   const placed = useRef(false);
 
-  useFrame((_, delta) => {
+  const capsuleRef = useRef<THREE.Mesh>(null);
+  const prev = useRef(new THREE.Vector3(player.x, 0, player.z));
+
+  useFrame((state, delta) => {
     const g = ref.current;
     if (!g) return;
 
@@ -192,6 +197,24 @@ function RemotePlayer({ player }: { player: PlayerView }) {
     g.position.z = THREE.MathUtils.damp(g.position.z, player.z, 10, delta);
     g.position.y = THREE.MathUtils.damp(g.position.y, targetY, 3.5, delta);
     g.rotation.y = player.rotationY;
+    // Tip over while falling when eliminated.
+    g.rotation.z = THREE.MathUtils.damp(
+      g.rotation.z,
+      player.alive ? 0 : 1.4,
+      4,
+      delta
+    );
+
+    // Hop animation: stronger while actually moving.
+    const speed =
+      prev.current.distanceTo(g.position) / Math.max(delta, 0.001);
+    prev.current.copy(g.position);
+    if (capsuleRef.current && player.alive) {
+      const amp = speed > 1 ? 0.32 : 0.04;
+      const rate = speed > 1 ? 15 : 2.5;
+      capsuleRef.current.position.y =
+        1 + Math.abs(Math.sin(state.clock.elapsedTime * rate)) * amp;
+    }
 
     if (matRef.current) {
       matRef.current.opacity = THREE.MathUtils.damp(
@@ -205,7 +228,7 @@ function RemotePlayer({ player }: { player: PlayerView }) {
 
   return (
     <group ref={ref}>
-      <mesh castShadow position={[0, 1, 0]}>
+      <mesh ref={capsuleRef} castShadow position={[0, 1, 0]}>
         <capsuleGeometry args={[0.4, 1, 6, 12]} />
         <meshStandardMaterial
           ref={matRef}
@@ -222,15 +245,18 @@ function LocalPlayer({
   arena,
   player,
   canMove,
+  revealAt,
   onMove,
 }: {
   arena: ArenaConfig;
   player: PlayerView;
   canMove: boolean;
+  revealAt: number | null;
   onMove: SceneProps["onMove"];
 }) {
   const ref = useRef<THREE.Group>(null);
   const matRef = useRef<THREE.MeshStandardMaterial>(null);
+  const capsuleRef = useRef<THREE.Mesh>(null);
   const pos = useRef(new THREE.Vector3(player.x, 0, player.z));
   const rotY = useRef(player.rotationY);
   const keys = usePressedKeys();
@@ -266,7 +292,7 @@ function LocalPlayer({
     return () => clearInterval(id);
   }, [canMove, onMove]);
 
-  useFrame((_, delta) => {
+  useFrame((state, delta) => {
     const k = keys.current;
     let dx = 0;
     let dz = 0;
@@ -276,6 +302,7 @@ function LocalPlayer({
       if (k["KeyA"] || k["ArrowLeft"]) dx -= 1;
       if (k["KeyD"] || k["ArrowRight"]) dx += 1;
     }
+    const moving = dx !== 0 || dz !== 0;
     if (dx !== 0 || dz !== 0) {
       movedThisRound.current = true; // input taken over — stop following server
       const len = Math.hypot(dx, dz);
@@ -301,6 +328,19 @@ function LocalPlayer({
     if (ref.current) {
       ref.current.position.copy(pos.current);
       ref.current.rotation.y = rotY.current;
+      ref.current.rotation.z = THREE.MathUtils.damp(
+        ref.current.rotation.z,
+        player.alive ? 0 : 1.4,
+        4,
+        delta
+      );
+    }
+    // Hop animation while moving.
+    if (capsuleRef.current && player.alive) {
+      const amp = moving ? 0.32 : 0.04;
+      const rate = moving ? 15 : 2.5;
+      capsuleRef.current.position.y =
+        1 + Math.abs(Math.sin(state.clock.elapsedTime * rate)) * amp;
     }
     if (matRef.current) {
       matRef.current.opacity = THREE.MathUtils.damp(
@@ -311,16 +351,29 @@ function LocalPlayer({
       );
     }
 
-    // Follow camera: hover above and behind the player (high enough to read the
-    // scattered board around them).
-    const camTarget = new THREE.Vector3(pos.current.x, 20, pos.current.z + 18);
+    // Camera follow + reveal "impact" (brief zoom-out and shake).
+    let shake = 0;
+    if (revealAt) {
+      const e = (performance.now() - revealAt) / 1000;
+      if (e >= 0 && e < 0.6) shake = 1 - e / 0.6;
+    }
+    const zoom = shake * 5;
+    const camTarget = new THREE.Vector3(
+      pos.current.x,
+      20 + zoom,
+      pos.current.z + 18 + zoom
+    );
     camera.position.lerp(camTarget, 1 - Math.pow(0.001, delta));
+    if (shake > 0) {
+      camera.position.x += (Math.random() - 0.5) * shake * 1.4;
+      camera.position.y += (Math.random() - 0.5) * shake * 1.4;
+    }
     camera.lookAt(pos.current.x, 0, pos.current.z);
   });
 
   return (
     <group ref={ref} position={[player.x, 0, player.z]}>
-      <mesh castShadow position={[0, 1, 0]}>
+      <mesh ref={capsuleRef} castShadow position={[0, 1, 0]}>
         <capsuleGeometry args={[0.4, 1, 6, 12]} />
         <meshStandardMaterial
           ref={matRef}
@@ -341,6 +394,7 @@ export default function Scene({
   selfId,
   canMove,
   correctAnswer,
+  revealAt,
   onMove,
 }: SceneProps) {
   const self = players.find((p) => p.id === selfId) ?? null;
@@ -377,6 +431,7 @@ export default function Scene({
           arena={arena}
           player={self}
           canMove={canMove}
+          revealAt={revealAt}
           onMove={onMove}
         />
       )}

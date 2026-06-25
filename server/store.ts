@@ -31,6 +31,8 @@ export interface RoomRuntime {
   arena: ArenaConfig;
   /** Active round/intermission timer, if any. */
   timer?: ReturnType<typeof setTimeout>;
+  /** Epoch ms when movement begins (after the countdown). */
+  startsAt?: number;
   /** Epoch ms when the current question phase ends. */
   endsAt?: number;
   createdAt: number;

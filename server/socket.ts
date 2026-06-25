@@ -74,8 +74,10 @@ export function registerSocketServer(io: IO) {
       const room = store.getRoom(joinedRoomId);
       if (!room) return;
       const player = room.players[socket.id];
-      // Only living players during an active question can move.
+      // Only living players during an active question can move — and only after
+      // the 3·2·1 countdown has finished.
       if (!player || !player.alive || room.gameState !== "question") return;
+      if (room.startsAt && Date.now() < room.startsAt) return;
 
       const clamped = clampToArena(x, z, room.arena);
       player.x = clamped.x;
