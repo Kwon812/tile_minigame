@@ -138,6 +138,8 @@ export interface ClientToServerEvents {
   joinRoom: (payload: JoinRoomPayload) => void;
   startGame: () => void;
   playerMove: (payload: PlayerMovePayload) => void;
+  /** Clock sync: client sends its local timestamp, server echoes + its own. */
+  timeSync: (clientSent: number) => void;
 }
 
 // Server -> Client events
@@ -152,4 +154,6 @@ export interface ServerToClientEvents {
   roundResult: (payload: RoundResultPayload) => void;
   nextRound: (round: number) => void;
   gameEnd: (payload: GameEndPayload) => void;
+  /** Clock sync reply: the client's sent timestamp + the server's clock now. */
+  timeSyncResult: (payload: { clientSent: number; serverTime: number }) => void;
 }

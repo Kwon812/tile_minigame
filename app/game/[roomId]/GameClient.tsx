@@ -40,24 +40,28 @@ function Confetti() {
   );
 }
 
-function useCountdown(endsAt: number | undefined) {
+function useCountdown(endsAt: number | undefined, serverOffset: number) {
   const [remaining, setRemaining] = useState(0);
   useEffect(() => {
     if (!endsAt) {
       setRemaining(0);
       return;
     }
+    // Compare against the server's clock, not this machine's, so the countdown
+    // is identical on every client regardless of local clock skew.
     const tick = () =>
-      setRemaining(Math.max(0, Math.ceil((endsAt - Date.now()) / 1000)));
+      setRemaining(
+        Math.max(0, Math.ceil((endsAt - (Date.now() + serverOffset)) / 1000))
+      );
     tick();
     const id = setInterval(tick, 200);
     return () => clearInterval(id);
-  }, [endsAt]);
+  }, [endsAt, serverOffset]);
   return remaining;
 }
 
 /** Pre-round 3·2·1·GO. Returns 3/2/1 while counting, 0 during the GO flash, null otherwise. */
-function useRoundStart(startsAt: number | undefined) {
+function useRoundStart(startsAt: number | undefined, serverOffset: number) {
   const [count, setCount] = useState<number | null>(null);
   useEffect(() => {
     if (!startsAt) {
@@ -65,7 +69,7 @@ function useRoundStart(startsAt: number | undefined) {
       return;
     }
     const update = () => {
-      const ms = startsAt - Date.now();
+      const ms = startsAt - (Date.now() + serverOffset);
       if (ms > 0) setCount(Math.ceil(ms / 1000));
       else if (ms > -800) setCount(0);
       else setCount(null);
@@ -73,7 +77,7 @@ function useRoundStart(startsAt: number | undefined) {
     update();
     const id = setInterval(update, 100);
     return () => clearInterval(id);
-  }, [startsAt]);
+  }, [startsAt, serverOffset]);
   return count;
 }
 
@@ -92,6 +96,7 @@ export default function GameClient({
   const {
     status,
     error,
+    serverOffset,
     selfId,
     room,
     players,
@@ -102,8 +107,8 @@ export default function GameClient({
     sendMove,
   } = game;
 
-  const remaining = useCountdown(question?.endsAt);
-  const count = useRoundStart(question?.startsAt);
+  const remaining = useCountdown(question?.endsAt, serverOffset);
+  const count = useRoundStart(question?.startsAt, serverOffset);
   const inCountdown = count !== null && count > 0;
 
   const self = players.find((p) => p.id === selfId) ?? null;

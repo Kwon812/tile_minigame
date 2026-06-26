@@ -20,6 +20,10 @@ export type ConnStatus = "connecting" | "joining" | "joined" | "error";
 export interface GameSocketState {
   status: ConnStatus;
   error: string | null;
+  /** serverNow ≈ Date.now() + serverOffset. Add it before comparing against
+   *  any server timestamp (startsAt/endsAt) so countdowns match across clients
+   *  whose system clocks differ from the server. */
+  serverOffset: number;
   selfId: string | null;
   room: RoomPublicState | null;
   players: PlayerView[];
@@ -44,6 +48,9 @@ export function useGameSocket(
 
   const [status, setStatus] = useState<ConnStatus>("connecting");
   const [error, setError] = useState<string | null>(null);
+  const [serverOffset, setServerOffset] = useState(0);
+  // Smallest round-trip seen so far — its sample gives the most accurate offset.
+  const bestRttRef = useRef(Infinity);
   const [selfId, setSelfId] = useState<string | null>(null);
   const [room, setRoom] = useState<RoomPublicState | null>(null);
   const [players, setPlayers] = useState<PlayerView[]>([]);
@@ -66,6 +73,23 @@ export function useGameSocket(
     socket.on("connect", () => {
       setStatus("joining");
       socket.emit("joinRoom", { roomId, nickname, color, spectator });
+
+      // Kick off a short burst of clock-sync pings; keep the best (lowest-RTT)
+      // estimate. Re-syncs periodically to absorb clock drift.
+      bestRttRef.current = Infinity;
+      for (let i = 0; i < 5; i++) {
+        setTimeout(() => socket.emit("timeSync", Date.now()), i * 250);
+      }
+    });
+
+    socket.on("timeSyncResult", ({ clientSent, serverTime }) => {
+      const now = Date.now();
+      const rtt = now - clientSent;
+      if (rtt < bestRttRef.current) {
+        bestRttRef.current = rtt;
+        // Server time at the round-trip midpoint maps to (clientSent + rtt/2).
+        setServerOffset(serverTime - (clientSent + rtt / 2));
+      }
     });
 
     socket.on("joined", (state) => {
@@ -122,7 +146,13 @@ export function useGameSocket(
       setStatus((s) => (s === "joined" ? "connecting" : s));
     });
 
+    // Re-sync every 30s so long sessions don't accumulate clock drift.
+    const syncTimer = setInterval(() => {
+      if (socket.connected) socket.emit("timeSync", Date.now());
+    }, 30_000);
+
     return () => {
+      clearInterval(syncTimer);
       socket.removeAllListeners();
       socket.disconnect();
       socketRef.current = null;
@@ -143,6 +173,7 @@ export function useGameSocket(
   return {
     status,
     error,
+    serverOffset,
     selfId,
     room,
     players,

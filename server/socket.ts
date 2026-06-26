@@ -74,6 +74,12 @@ export function registerSocketServer(io: IO) {
       io.to(roomId).emit("roomState", toPublicState(room));
     });
 
+    // Clock sync: reply immediately with the server's wall-clock time so the
+    // client can estimate the offset between its system clock and the server's.
+    socket.on("timeSync", (clientSent) => {
+      socket.emit("timeSyncResult", { clientSent, serverTime: Date.now() });
+    });
+
     socket.on("startGame", () => {
       if (!joinedRoomId) return;
       startGame(io, joinedRoomId);

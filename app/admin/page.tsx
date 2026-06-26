@@ -37,7 +37,7 @@ export default function AdminPage() {
 
   // game creation (string-backed so the fields can be cleared/retyped freely)
   const [gameTitle, setGameTitle] = useState("");
-  const [gameTheme, setGameTheme] = useState("science");
+  const [gameTheme, setGameTheme] = useState("딥페이크");
   const [questionCount, setQuestionCount] = useState("10");
   const [maxPlayers, setMaxPlayers] = useState("30");
   // 소켓 서버의 실제 활성 방 목록 (새로고침해도 유지됨).
