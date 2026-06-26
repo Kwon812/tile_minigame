@@ -32,11 +32,11 @@ export default function Joystick({
   const baseRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Mobile only: a coarse primary pointer with no fine pointer available.
-    // (Excludes touch-capable laptops that also have a mouse/trackpad.)
-    const coarse = window.matchMedia?.("(pointer: coarse)").matches ?? false;
-    const noFine = !(window.matchMedia?.("(any-pointer: fine)").matches ?? false);
-    setIsTouch(coarse && noFine);
+    // Touch devices (phones + tablets): the primary pointer is coarse. Desktops
+    // with a mouse report a fine primary pointer, so they're excluded. (We don't
+    // also require "no fine pointer" — tablets often expose a secondary fine
+    // pointer for a stylus, which would wrongly hide the joystick.)
+    setIsTouch(window.matchMedia?.("(pointer: coarse)").matches ?? false);
   }, []);
 
   // Zero the shared vector + reset the knob whenever the joystick hides.
@@ -95,7 +95,7 @@ export default function Joystick({
       onPointerCancel={(e) => {
         if (pointerId.current === e.pointerId) reset();
       }}
-      className="pointer-events-auto absolute bottom-8 left-8 z-30 touch-none select-none rounded-full border border-white/20 bg-white/10 backdrop-blur"
+      className="pointer-events-auto absolute bottom-28 left-8 z-30 touch-none select-none rounded-full border border-white/20 bg-white/10 backdrop-blur"
       style={{ width: BASE, height: BASE }}
     >
       <div
