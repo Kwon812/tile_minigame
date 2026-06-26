@@ -32,10 +32,11 @@ export default function Joystick({
   const baseRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setIsTouch(
-      window.matchMedia?.("(pointer: coarse)").matches ||
-        "ontouchstart" in window
-    );
+    // Mobile only: a coarse primary pointer with no fine pointer available.
+    // (Excludes touch-capable laptops that also have a mouse/trackpad.)
+    const coarse = window.matchMedia?.("(pointer: coarse)").matches ?? false;
+    const noFine = !(window.matchMedia?.("(any-pointer: fine)").matches ?? false);
+    setIsTouch(coarse && noFine);
   }, []);
 
   // Zero the shared vector + reset the knob whenever the joystick hides.

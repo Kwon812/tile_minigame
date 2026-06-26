@@ -195,6 +195,23 @@ export default function GameClient({
     if (phase === "question" && remaining > 0 && remaining <= 5) sfx.tick();
   }, [remaining, phase]);
 
+  // Suppress browser touch gestures (scroll, pull-to-refresh, pinch-zoom,
+  // double-tap zoom) for the duration of the game so they don't fight with the
+  // joystick / camera. `touch-action: none` on the root handles most of it;
+  // these listeners cover iOS Safari, which ignores overscroll-behavior.
+  useEffect(() => {
+    const prevent = (e: Event) => e.preventDefault();
+    document.addEventListener("touchmove", prevent, { passive: false });
+    document.addEventListener("gesturestart", prevent);
+    const prevOverscroll = document.body.style.overscrollBehavior;
+    document.body.style.overscrollBehavior = "none";
+    return () => {
+      document.removeEventListener("touchmove", prevent);
+      document.removeEventListener("gesturestart", prevent);
+      document.body.style.overscrollBehavior = prevOverscroll;
+    };
+  }, []);
+
   const lowTime = phase === "question" && remaining > 0 && remaining <= 5;
   const eliminatedThisRound = reveal?.eliminatedPlayerIds.length ?? 0;
 
@@ -230,7 +247,7 @@ export default function GameClient({
   }
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden bg-slate-950">
+    <div className="relative h-screen w-screen touch-none overflow-hidden overscroll-none bg-slate-950">
       <Canvas shadows camera={{ position: [0, 20, 20], fov: 50 }}>
         <Scene
           arena={arena ?? room.arena}
