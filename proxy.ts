@@ -15,11 +15,17 @@ export const config = {
   matcher: ["/admin", "/admin/:path*", "/api/admin/:path*"],
 };
 
-function unauthorized() {
-  return new Response("Authentication required.", {
-    status: 401,
-    headers: { "WWW-Authenticate": 'Basic realm="Admin", charset="UTF-8"' },
-  });
+function unauthorized(request: NextRequest) {
+  // Only ask the browser to show its native login dialog for real page
+  // navigations (e.g. visiting /admin). For programmatic requests — fetch,
+  // prefetch, the /api/admin/me check — omit WWW-Authenticate so no popup
+  // appears; those just receive a plain 401.
+  const isNavigation = request.headers.get("sec-fetch-mode") === "navigate";
+  const headers: Record<string, string> = {};
+  if (isNavigation) {
+    headers["WWW-Authenticate"] = 'Basic realm="Admin", charset="UTF-8"';
+  }
+  return new Response("Authentication required.", { status: 401, headers });
 }
 
 export function proxy(request: NextRequest) {
@@ -30,7 +36,7 @@ export function proxy(request: NextRequest) {
   const expectedUser = process.env.ADMIN_USER || "admin";
 
   const header = request.headers.get("authorization");
-  if (!header?.startsWith("Basic ")) return unauthorized();
+  if (!header?.startsWith("Basic ")) return unauthorized(request);
 
   let user = "";
   let pass = "";
@@ -40,11 +46,11 @@ export function proxy(request: NextRequest) {
     user = decoded.slice(0, idx);
     pass = decoded.slice(idx + 1);
   } catch {
-    return unauthorized();
+    return unauthorized(request);
   }
 
   if (user !== expectedUser || pass !== expectedPassword) {
-    return unauthorized();
+    return unauthorized(request);
   }
   // Authenticated — continue to the route.
 }

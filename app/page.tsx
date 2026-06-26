@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
 import { PLAYER_COLORS } from "@/lib/gameConfig";
 
 interface RoomInfo {
@@ -21,6 +20,14 @@ export default function Home() {
   const [color, setColor] = useState(0);
   const [rooms, setRooms] = useState<RoomInfo[]>([]);
   const [loading, setLoading] = useState(true);
+  // null = 확인 중. /api/admin/me 는 Basic Auth 게이트 뒤라, 로그인했으면 200.
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    fetch("/api/admin/me")
+      .then((r) => setIsAdmin(r.ok))
+      .catch(() => setIsAdmin(false));
+  }, []);
 
   const loadRooms = useCallback(async () => {
     try {
@@ -145,12 +152,43 @@ export default function Home() {
         )}
       </div>
 
-      <Link
-        href="/admin"
-        className="text-sm text-slate-400 underline-offset-4 hover:text-white hover:underline"
-      >
-        관리자 페이지 (문제 관리 · 게임 생성)
-      </Link>
+      <div className="flex flex-col items-center gap-3">
+        {/* 현재 사용자 상태 */}
+        {isAdmin === null ? (
+          <span className="text-xs text-slate-500">상태 확인 중…</span>
+        ) : isAdmin ? (
+          <span className="rounded-full bg-fuchsia-600/30 px-3 py-1 text-sm font-semibold text-fuchsia-300">
+            선생님
+          </span>
+        ) : (
+          <span className="rounded-full bg-slate-700 px-3 py-1 text-sm text-slate-300 font-semibold">
+            학생
+          </span>
+        )}
+
+        {/* 일반 <a> = 전체 페이지 이동(navigate). 그래야 미로그인 시 /admin 에서
+            브라우저 로그인 팝업이 뜸. (Next <Link>는 RSC fetch라 팝업이 안 뜸) */}
+        {isAdmin ? (
+          <a
+            href="/admin"
+            className="rounded-lg bg-fuchsia-600 px-5 py-2 text-sm font-semibold transition hover:bg-fuchsia-500"
+          >
+            선생님 페이지 (문제 관리 · 게임 생성) →
+          </a>
+        ) : (
+          <a
+            href="/admin"
+            className=" px-2 py-1 text-[13px]  font-semibold text-slate-200 transition hover:text-blue-300"
+          >
+            선생님 로그인
+          </a>
+        )}
+        {isAdmin && (
+          <span className="text-xs text-slate-500">
+            게임 입장 시 관람 모드로 보여집니다
+          </span>
+        )}
+      </div>
     </div>
   );
 }
