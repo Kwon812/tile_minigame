@@ -4,12 +4,7 @@ import type {
   ClientToServerEvents,
   ServerToClientEvents,
 } from "../lib/types";
-import {
-  arenaBounds,
-  clampColorIndex,
-  zoneFromPosition,
-  HOLE_ZONE,
-} from "../lib/gameConfig";
+import { arenaBounds, clampColorIndex } from "../lib/gameConfig";
 import { store, toPlayerView, toPublicState } from "./store";
 import { startGame } from "./gameEngine";
 
@@ -89,15 +84,8 @@ export function registerSocketServer(io: IO) {
       player.z = clamped.z;
       player.y = typeof y === "number" ? y : 0;
       player.rotationY = rotationY ?? 0;
-
-      // Step into a hole → fall and get eliminated immediately.
-      if (zoneFromPosition(player.x, player.z, room.arena) === HOLE_ZONE) {
-        player.alive = false;
-        io.to(joinedRoomId).emit(
-          "playersUpdate",
-          Object.values(room.players).map(toPlayerView)
-        );
-      }
+      // Holes are NOT instant death anymore — judged at timer end in endRound
+      // (a player standing on a hole tile, zone -1, fails the answer check).
     });
 
     socket.on("disconnect", () => {

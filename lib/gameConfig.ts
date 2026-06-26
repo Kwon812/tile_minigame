@@ -4,8 +4,8 @@ import type { ArenaConfig } from "./types";
 /** How long (ms) players have to move onto a tile each round. */
 export const ROUND_DURATION_MS = 10_000;
 
-/** "3·2·1·GO" countdown (ms) before each round's timer starts. */
-export const COUNTDOWN_MS = 3_000;
+/** Memorize-the-board countdown (ms) before each round's timer starts. */
+export const COUNTDOWN_MS = 5_000;
 
 /** Pause (ms) between revealing the answer and starting the next round. */
 export const INTERMISSION_MS = 5_000;

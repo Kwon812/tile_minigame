@@ -16,6 +16,17 @@ import {
 const playerColor = (i: number) =>
   PLAYER_COLORS[((i % PLAYER_COLORS.length) + PLAYER_COLORS.length) % PLAYER_COLORS.length];
 
+/**
+ * Tile board phase:
+ * - "study"  : countdown — show real colors; holes marked dark (memorize!).
+ * - "act"    : moving — every tile (incl. holes) is uniform gray (from memory).
+ * - "reveal" : timer up — real colors return; wrong tiles & holes drop.
+ */
+export type TileMode = "study" | "act" | "reveal";
+
+const TILE_GRAY = "#64748b";
+const TILE_HOLE_DARK = "#0b1020";
+
 export interface SceneProps {
   arena: ArenaConfig;
   players: PlayerView[];
@@ -24,6 +35,8 @@ export interface SceneProps {
   canMove: boolean;
   /** Correct zone index once revealed, else null. */
   correctAnswer: number | null;
+  /** Board display phase. */
+  tileMode: TileMode;
   /** Timestamp (ms) the answer was revealed, for the camera impact effect. */
   revealAt: number | null;
   onMove: (x: number, y: number, z: number, rotationY: number) => void;
@@ -48,11 +61,13 @@ function usePressedKeys() {
 function Tiles({
   arena,
   correctAnswer,
+  tileMode,
 }: {
   arena: ArenaConfig;
   correctAnswer: number | null;
+  tileMode: TileMode;
 }) {
-  // Tiles with their server-assigned zone (color). Row-major index = row*cols+col.
+  // Every grid cell (including holes) is a mesh — holes only differ by color/drop.
   const tiles = useMemo(() => {
     const out: {
       col: number;
@@ -60,13 +75,13 @@ function Tiles({
       x: number;
       z: number;
       zone: number;
+      isHole: boolean;
     }[] = [];
     for (let row = 0; row < arena.rows; row++) {
       for (let col = 0; col < arena.cols; col++) {
         const zone = arena.tileZones[row * arena.cols + col] ?? 0;
-        if (zone === HOLE_ZONE) continue; // hole: render nothing (a gap)
         const { x, z } = tileCenter(col, row, arena);
-        out.push({ col, row, x, z, zone });
+        out.push({ col, row, x, z, zone, isHole: zone === HOLE_ZONE });
       }
     }
     return out;
@@ -74,24 +89,37 @@ function Tiles({
 
   const meshRefs = useRef<Map<string, THREE.Mesh>>(new Map());
 
-  // After the answer is revealed, wrong-colored tiles fall AND fade out.
+  // A tile stays up unless we're revealing and it's wrong-colored or a hole.
+  const stays = (t: { zone: number; isHole: boolean }) =>
+    tileMode !== "reveal" || (!t.isHole && t.zone === correctAnswer);
+
   useFrame((_, delta) => {
     for (const t of tiles) {
       const mesh = meshRefs.current.get(`${t.col}-${t.row}`);
       if (!mesh) continue;
-      const wrong = correctAnswer !== null && t.zone !== correctAnswer;
-      const targetY = wrong ? -10 : 0;
-      mesh.position.y = THREE.MathUtils.damp(mesh.position.y, targetY, 4, delta);
+      const up = stays(t);
+      mesh.position.y = THREE.MathUtils.damp(
+        mesh.position.y,
+        up ? 0 : -10,
+        4,
+        delta
+      );
       const mat = mesh.material as THREE.MeshStandardMaterial;
-      mat.opacity = THREE.MathUtils.damp(mat.opacity, wrong ? 0 : 1, 2.5, delta);
+      mat.opacity = THREE.MathUtils.damp(mat.opacity, up ? 1 : 0, 2.5, delta);
     }
   });
+
+  function tileColor(t: { zone: number; isHole: boolean }) {
+    if (tileMode === "act") return TILE_GRAY; // everything gray, holes hidden
+    if (t.isHole) return tileMode === "study" ? TILE_HOLE_DARK : TILE_GRAY;
+    return ZONE_COLORS[t.zone % ZONE_COLORS.length];
+  }
 
   return (
     <group>
       {tiles.map((t) => {
-        const isCorrect = correctAnswer === t.zone;
-        const color = ZONE_COLORS[t.zone % ZONE_COLORS.length];
+        const isCorrect = tileMode === "reveal" && t.zone === correctAnswer;
+        const color = tileColor(t);
         return (
           <mesh
             key={`${t.col}-${t.row}`}
@@ -396,6 +424,7 @@ export default function Scene({
   selfId,
   canMove,
   correctAnswer,
+  tileMode,
   revealAt,
   onMove,
 }: SceneProps) {
@@ -423,7 +452,7 @@ export default function Scene({
       <color attach="background" args={["#0b1020"]} />
       <fog attach="fog" args={["#0b1020", 40, 90]} />
 
-      <Tiles arena={arena} correctAnswer={correctAnswer} />
+      <Tiles arena={arena} correctAnswer={correctAnswer} tileMode={tileMode} />
 
       {others.map((p) => (
         <RemotePlayer key={p.id} player={p} />

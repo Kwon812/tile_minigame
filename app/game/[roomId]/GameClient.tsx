@@ -124,6 +124,13 @@ export default function GameClient({
     !gameEnd &&
     !inCountdown;
 
+  // Board phase: study (countdown — colors shown), act (moving — gray), reveal.
+  const tileMode: "study" | "act" | "reveal" = reveal
+    ? "reveal"
+    : phase === "question" && !inCountdown
+    ? "act"
+    : "study";
+
   const options = useMemo(
     () => question?.question.options ?? [],
     [question]
@@ -219,6 +226,7 @@ export default function GameClient({
           selfId={selfId}
           canMove={canMove}
           correctAnswer={reveal ? reveal.correctAnswer : null}
+          tileMode={tileMode}
           revealAt={revealAt}
           onMove={sendMove}
         />
@@ -242,9 +250,14 @@ export default function GameClient({
               </div>
             )}
             {count > 0 ? (
-              <div className="text-[10rem] font-extrabold leading-none text-white drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)]">
-                {count}
-              </div>
+              <>
+                <div className="text-[10rem] font-extrabold leading-none text-white drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)]">
+                  {count}
+                </div>
+                <div className="mt-2 text-xl font-bold text-amber-300 drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">
+                  색과 구멍 위치를 외우세요!
+                </div>
+              </>
             ) : (
               <div className="text-8xl font-extrabold text-sky-300 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
                 GO!
@@ -347,7 +360,8 @@ export default function GameClient({
         {/* Bottom: controls hint */}
         {canMove && (
           <div className="mx-auto rounded-lg bg-black/50 px-4 py-2 text-sm text-slate-200 backdrop-blur">
-            WASD / 방향키로 정답 타일 위로 이동하세요
+            기억으로 정답 색 타일까지! (타일이 회색이라 위치를 외워야 해요 ·
+            구멍 주의)
           </div>
         )}
 
