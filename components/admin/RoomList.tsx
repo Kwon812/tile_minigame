@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { RoomInfo } from "@/services/gameService";
+import { difficultyLabel, type RoomInfo } from "@/services/gameService";
 
 /** Live active-room list with copy-link / open actions. */
 export function RoomList({
@@ -51,6 +51,17 @@ export function RoomList({
                 >
                   {r.gameState}
                 </span>
+                {r.difficulty && (
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                      r.difficulty === "hard"
+                        ? "bg-rose-600/30 text-rose-300"
+                        : "bg-sky-600/30 text-sky-300"
+                    }`}
+                  >
+                    {difficultyLabel(r.difficulty)}
+                  </span>
+                )}
               </div>
               <span className="text-xs text-slate-400">
                 <span className="font-mono text-sky-300">{r.roomId}</span> ·{" "}

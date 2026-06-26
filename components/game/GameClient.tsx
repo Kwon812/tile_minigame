@@ -70,10 +70,14 @@ export default function GameClient({
     !inCountdown;
 
   // Board phase: study (countdown — colors shown), act (moving — gray), reveal.
+  // In "normal" difficulty the tiles never gray out, so the moving phase keeps
+  // showing real colors (rendered the same as "study").
   const tileMode: "study" | "act" | "reveal" = reveal
     ? "reveal"
     : phase === "question" && !inCountdown
-    ? "act"
+    ? room?.difficulty === "normal"
+      ? "study"
+      : "act"
     : "study";
 
   const options = useMemo(() => question?.question.options ?? [], [question]);
@@ -193,8 +197,12 @@ export default function GameClient({
         />
       </Canvas>
 
-      {/* Touch joystick — shown on coarse-pointer devices while moving is allowed */}
-      {!spectator && <Joystick moveVec={moveVec} visible={canMove} />}
+      {/* Touch joystick — kept mounted through the whole game (not just while
+          canMove) so a thumb resting on it during the countdown still controls
+          movement the instant it's allowed. Dims when movement is off. */}
+      {!spectator && !gameEnd && !!self?.alive && (
+        <Joystick moveVec={moveVec} active={canMove} />
+      )}
 
       <Hud
         room={room}

@@ -9,22 +9,29 @@ export interface MoveVec {
   z: number;
 }
 
-const BASE = 128; // outer ring diameter (px)
-const KNOB = 56; // thumb knob diameter (px)
+const BASE = 132; // outer ring diameter (px)
+const KNOB = 58; // thumb knob diameter (px)
 const RADIUS = (BASE - KNOB) / 2; // max knob travel from center
 
 /**
  * Touch joystick overlay. Renders only on coarse-pointer (touch) devices.
- * Writes a normalized {x,z} vector into `moveVec` while dragged; zeroes it on
- * release. The 3D LocalPlayer reads the same ref each frame, so it adds to the
- * keyboard input without any extra wiring.
+ *
+ * It stays MOUNTED for the whole game (the parent keeps it alive) and only dims
+ * when `active` is false. This is deliberate: between rounds (countdown/reveal)
+ * the player can move is false, but if we unmounted the stick a thumb already
+ * resting on it would lose its `pointerdown`, so movement wouldn't start until
+ * the player lifted and tapped again. Keeping it mounted means a held finger
+ * keeps control and re-touch always registers.
+ *
+ * Writing to `moveVec` while inactive is harmless — LocalPlayer only reads it
+ * when the player may actually move.
  */
 export default function Joystick({
   moveVec,
-  visible,
+  active,
 }: {
   moveVec: React.MutableRefObject<MoveVec>;
-  visible: boolean;
+  active: boolean;
 }) {
   const [isTouch, setIsTouch] = useState(false);
   const [knob, setKnob] = useState({ x: 0, y: 0 });
@@ -33,23 +40,21 @@ export default function Joystick({
 
   useEffect(() => {
     // Touch devices (phones + tablets): the primary pointer is coarse. Desktops
-    // with a mouse report a fine primary pointer, so they're excluded. (We don't
-    // also require "no fine pointer" — tablets often expose a secondary fine
-    // pointer for a stylus, which would wrongly hide the joystick.)
+    // with a mouse report a fine primary pointer, so they're excluded.
     setIsTouch(window.matchMedia?.("(pointer: coarse)").matches ?? false);
   }, []);
 
-  // Zero the shared vector + reset the knob whenever the joystick hides.
+  // When movement turns off AND no finger is on the stick, clear any leftover
+  // push. A held finger is left alone so it stays in control into the next round.
   useEffect(() => {
-    if (!visible) {
+    if (!active && pointerId.current === null) {
       moveVec.current.x = 0;
       moveVec.current.z = 0;
       setKnob({ x: 0, y: 0 });
-      pointerId.current = null;
     }
-  }, [visible, moveVec]);
+  }, [active, moveVec]);
 
-  if (!isTouch || !visible) return null;
+  if (!isTouch) return null;
 
   const updateFrom = (clientX: number, clientY: number) => {
     const el = baseRef.current;
@@ -81,8 +86,14 @@ export default function Joystick({
     <div
       ref={baseRef}
       onPointerDown={(e) => {
-        e.currentTarget.setPointerCapture(e.pointerId);
+        // Capture so we keep getting moves even if the thumb slides off the pad.
+        e.preventDefault();
         pointerId.current = e.pointerId;
+        try {
+          e.currentTarget.setPointerCapture(e.pointerId);
+        } catch {
+          /* capture unsupported — pointer events still bubble to us */
+        }
         updateFrom(e.clientX, e.clientY);
       }}
       onPointerMove={(e) => {
@@ -95,7 +106,14 @@ export default function Joystick({
       onPointerCancel={(e) => {
         if (pointerId.current === e.pointerId) reset();
       }}
-      className="pointer-events-auto absolute bottom-28 left-8 z-30 touch-none select-none rounded-full border border-white/20 bg-white/10 backdrop-blur"
+      onLostPointerCapture={() => {
+        // Browser yanked the capture (e.g. gesture interception) — recenter so
+        // we don't leave a stuck push.
+        if (pointerId.current !== null) reset();
+      }}
+      className={`pointer-events-auto absolute bottom-28 left-8 z-30 touch-none select-none rounded-full border border-white/20 bg-white/10 backdrop-blur transition-opacity ${
+        active ? "opacity-100" : "opacity-40"
+      }`}
       style={{ width: BASE, height: BASE }}
     >
       <div

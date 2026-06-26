@@ -6,6 +6,7 @@ import * as THREE from "three";
 import type { PlayerView } from "@/lib/types";
 import { FALL_Y, playerColor } from "./shared";
 import { NameTag } from "./NameTag";
+import { Character } from "./Character";
 
 export function RemotePlayer({ player }: { player: PlayerView }) {
   const ref = useRef<THREE.Group>(null);
@@ -66,14 +67,11 @@ export function RemotePlayer({ player }: { player: PlayerView }) {
 
   return (
     <group ref={ref}>
-      <mesh ref={capsuleRef} castShadow position={[0, 1, 0]}>
-        <capsuleGeometry args={[0.4, 1, 6, 12]} />
-        <meshStandardMaterial
-          ref={matRef}
-          color={player.connected ? playerColor(player.color) : "#9ca3af"}
-          transparent
-        />
-      </mesh>
+      <Character
+        bodyRef={capsuleRef}
+        matRef={matRef}
+        color={player.connected ? playerColor(player.color) : "#9ca3af"}
+      />
       {player.alive && <NameTag name={player.nickname} isSelf={false} />}
     </group>
   );

@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { PLAYER_COLORS } from "@/lib/gameConfig";
-import { listRooms, type RoomInfo } from "@/services/gameService";
+import { difficultyLabel, listRooms, type RoomInfo } from "@/services/gameService";
 
 /** Landing page: pick a nickname/color and join a waiting room. */
 export default function HomeView() {
@@ -124,7 +124,20 @@ export default function HomeView() {
                   className="flex items-center justify-between gap-3 rounded-xl bg-slate-800/60 p-3"
                 >
                   <div className="min-w-0">
-                    <p className="truncate font-medium">{r.title}</p>
+                    <p className="flex items-center gap-1.5 truncate font-medium">
+                      {r.title}
+                      {r.difficulty && (
+                        <span
+                          className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                            r.difficulty === "hard"
+                              ? "bg-rose-600/30 text-rose-300"
+                              : "bg-sky-600/30 text-sky-300"
+                          }`}
+                        >
+                          {difficultyLabel(r.difficulty)}
+                        </span>
+                      )}
+                    </p>
                     <p className="truncate text-xs text-slate-400">
                       <span className="text-fuchsia-300">{r.theme}</span> ·{" "}
                       {r.questionCount}문제 · {r.players}/{r.maxPlayers}명

@@ -12,13 +12,21 @@ export interface RoomInfo {
   maxPlayers: number;
   questionCount: number;
   round?: number;
+  difficulty?: GameDifficulty;
 }
+
+import type { GameDifficulty } from "@/lib/types";
+
+/** Korean label for a board difficulty (empty when unknown). */
+export const difficultyLabel = (d: GameDifficulty | undefined) =>
+  d === "hard" ? "어려움" : d === "normal" ? "노말" : "";
 
 export interface CreateGameInput {
   title: string;
   theme: string;
   questionCount: number;
   maxPlayers: number;
+  difficulty: GameDifficulty;
 }
 
 export interface CreateGameResult {

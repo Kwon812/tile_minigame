@@ -2,7 +2,7 @@
 // room is held in that process's memory — the Vercel app proxies to it.
 
 import { supabase } from "../lib/supabase";
-import type { Quiz } from "../lib/types";
+import type { GameDifficulty, Quiz } from "../lib/types";
 import { store, type RoomRuntime } from "./store";
 
 export class CreateGameError extends Error {
@@ -18,6 +18,7 @@ export interface CreateGameInput {
   theme: string;
   questionCount?: number;
   maxPlayers?: number;
+  difficulty?: GameDifficulty;
 }
 
 export async function createGameRoom(
@@ -26,6 +27,8 @@ export async function createGameRoom(
   const theme = input.theme;
   const questionCount = input.questionCount ?? 10;
   const maxPlayers = input.maxPlayers ?? 30;
+  // Default to "hard" so unspecified requests keep the original behavior.
+  const difficulty: GameDifficulty = input.difficulty === "normal" ? "normal" : "hard";
 
   if (!theme) throw new CreateGameError("theme is required", 400);
 
@@ -47,5 +50,11 @@ export async function createGameRoom(
   const shuffled = [...quizzes].sort(() => Math.random() - 0.5);
   const questionList = shuffled.slice(0, Math.max(1, questionCount));
 
-  return store.createRoom({ title: input.title, theme, maxPlayers, questionList });
+  return store.createRoom({
+    title: input.title,
+    theme,
+    maxPlayers,
+    difficulty,
+    questionList,
+  });
 }

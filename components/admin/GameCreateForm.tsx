@@ -1,8 +1,17 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import type { Quiz } from "@/lib/types";
+import type { GameDifficulty, Quiz } from "@/lib/types";
 import { createGame } from "@/services/gameService";
+
+const DIFFICULTY_OPTIONS: {
+  value: GameDifficulty;
+  label: string;
+  desc: string;
+}[] = [
+  { value: "normal", label: "노말", desc: "타일 색이 계속 보여요 (쉬움)" },
+  { value: "hard", label: "어려움", desc: "이동 시작하면 타일이 회색으로! (암기)" },
+];
 
 /** Game-creation form + selected-theme question preview. Owns its own draft
  *  state; reads quizzes/themes from the dashboard. */
@@ -24,6 +33,7 @@ export function GameCreateForm({
   const [gameTheme, setGameTheme] = useState("딥페이크");
   const [questionCount, setQuestionCount] = useState("10");
   const [maxPlayers, setMaxPlayers] = useState("30");
+  const [difficulty, setDifficulty] = useState<GameDifficulty>("normal");
   const [creating, setCreating] = useState(false);
 
   const availableCount = activeCount(gameTheme);
@@ -61,6 +71,7 @@ export function GameCreateForm({
         theme: gameTheme,
         questionCount: qc,
         maxPlayers: mp,
+        difficulty,
       });
       onMessage(`"${result.title}" 방 생성됨 (${result.roomId})`);
       setGameTitle("");
@@ -120,6 +131,32 @@ export function GameCreateForm({
               })}
             </div>
           )}
+        </div>
+
+        <div className="text-sm">
+          <span className="mb-2 block text-slate-400">게임 난이도</span>
+          <div className="flex flex-wrap gap-2">
+            {DIFFICULTY_OPTIONS.map((opt) => {
+              const selected = difficulty === opt.value;
+              return (
+                <button
+                  type="button"
+                  key={opt.value}
+                  onClick={() => setDifficulty(opt.value)}
+                  className={`rounded-lg border-2 px-4 py-2 text-left transition ${
+                    selected
+                      ? "border-fuchsia-500 bg-fuchsia-500/20 font-semibold text-fuchsia-200 shadow-[0_0_10px_rgba(217,70,239,0.35)]"
+                      : "border-slate-700 bg-slate-800 text-slate-300 hover:border-slate-500"
+                  }`}
+                >
+                  <span className="block">{opt.label}</span>
+                  <span className="block text-xs font-normal opacity-70">
+                    {opt.desc}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <div className="flex flex-wrap items-end gap-4">

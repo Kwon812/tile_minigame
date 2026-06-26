@@ -9,6 +9,7 @@ import { usePressedKeys } from "@/hooks/usePressedKeys";
 import type { MoveVec } from "../Joystick";
 import { FALL_Y, playerColor, type MoveHandler } from "./shared";
 import { NameTag } from "./NameTag";
+import { Character } from "./Character";
 
 export function LocalPlayer({
   arena,
@@ -151,16 +152,12 @@ export function LocalPlayer({
 
   return (
     <group ref={ref} position={[player.x, 0, player.z]}>
-      <mesh ref={capsuleRef} castShadow position={[0, 1, 0]}>
-        <capsuleGeometry args={[0.4, 1, 6, 12]} />
-        <meshStandardMaterial
-          ref={matRef}
-          color={playerColor(player.color)}
-          emissive={playerColor(player.color)}
-          emissiveIntensity={0.35}
-          transparent
-        />
-      </mesh>
+      <Character
+        bodyRef={capsuleRef}
+        matRef={matRef}
+        color={playerColor(player.color)}
+        emissiveIntensity={0.35}
+      />
       {player.alive && <NameTag name={player.nickname} isSelf />}
     </group>
   );

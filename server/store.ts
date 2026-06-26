@@ -7,6 +7,7 @@
 
 import type {
   ArenaConfig,
+  GameDifficulty,
   GameState,
   Player,
   PlayerView,
@@ -20,6 +21,8 @@ export interface RoomRuntime {
   title: string;
   theme: string;
   maxPlayers: number;
+  /** Board difficulty (normal = colors stay, hard = tiles gray out). */
+  difficulty: GameDifficulty;
   /** Full quizzes incl. correct answers — server-only, never sent to clients. */
   questionList: Quiz[];
   /** 1-based current round number. */
@@ -46,6 +49,7 @@ class GameStore {
     title?: string;
     theme: string;
     maxPlayers: number;
+    difficulty: GameDifficulty;
     questionList: Quiz[];
   }): RoomRuntime {
     this.counter += 1;
@@ -62,6 +66,7 @@ class GameStore {
       title: opts.title?.trim() || opts.theme,
       theme: opts.theme,
       maxPlayers: opts.maxPlayers,
+      difficulty: opts.difficulty,
       questionList: opts.questionList,
       round: 0,
       currentQuestionIndex: -1,
@@ -115,5 +120,6 @@ export function toPublicState(room: RoomRuntime): RoomPublicState {
     gameState: room.gameState,
     players: Object.values(room.players).map(toPlayerView),
     arena: room.arena,
+    difficulty: room.difficulty,
   };
 }

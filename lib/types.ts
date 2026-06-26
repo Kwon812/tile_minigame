@@ -2,6 +2,13 @@
 
 export type Difficulty = "easy" | "normal" | "hard";
 
+/**
+ * Per-game board difficulty (distinct from a quiz's `difficulty`):
+ * - "normal": tiles keep their real colors the whole round (no memorizing).
+ * - "hard":   tiles turn gray once the timer starts — memorize the layout.
+ */
+export type GameDifficulty = "normal" | "hard";
+
 export interface Quiz {
   id: string;
   question: string;
@@ -82,6 +89,8 @@ export interface RoomPublicState {
   gameState: GameState;
   players: PlayerView[];
   arena: ArenaConfig;
+  /** Board difficulty — controls whether tiles gray out during the round. */
+  difficulty: GameDifficulty;
 }
 
 // ---- Socket payloads ----

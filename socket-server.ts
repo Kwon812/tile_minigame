@@ -95,6 +95,7 @@ async function main() {
           players: Object.keys(r.players).length,
           maxPlayers: r.maxPlayers,
           questionCount: r.questionList.length,
+          difficulty: r.difficulty,
           round: r.round,
           createdAt: r.createdAt,
         }));
@@ -122,6 +123,7 @@ async function main() {
               : undefined,
           maxPlayers:
             typeof body.maxPlayers === "number" ? body.maxPlayers : undefined,
+          difficulty: body.difficulty === "normal" ? "normal" : "hard",
         });
         sendJson(res, 201, {
           roomId: room.roomId,
