@@ -39,7 +39,22 @@ export interface SceneProps {
   tileMode: TileMode;
   /** Timestamp (ms) the answer was revealed, for the camera impact effect. */
   revealAt: number | null;
+  /** Admin spectator — overview camera, no local player. */
+  spectator: boolean;
   onMove: (x: number, y: number, z: number, rotationY: number) => void;
+}
+
+/** Fixed overhead camera for admin spectators (board is centered on origin). */
+function SpectatorCamera() {
+  const { camera } = useThree();
+  useFrame((_, delta) => {
+    camera.position.lerp(
+      new THREE.Vector3(0, 30, 24),
+      1 - Math.pow(0.001, delta)
+    );
+    camera.lookAt(0, 0, 0);
+  });
+  return null;
 }
 
 // ---- input ----
@@ -426,10 +441,13 @@ export default function Scene({
   correctAnswer,
   tileMode,
   revealAt,
+  spectator,
   onMove,
 }: SceneProps) {
-  const self = players.find((p) => p.id === selfId) ?? null;
-  const others = players.filter((p) => p.id !== selfId);
+  const self = spectator ? null : players.find((p) => p.id === selfId) ?? null;
+  const others = spectator
+    ? players
+    : players.filter((p) => p.id !== selfId);
 
   return (
     <>
@@ -466,6 +484,7 @@ export default function Scene({
           onMove={onMove}
         />
       )}
+      {spectator && <SpectatorCamera />}
     </>
   );
 }

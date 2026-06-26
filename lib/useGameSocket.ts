@@ -37,7 +37,8 @@ export interface GameSocketApi extends GameSocketState {
 export function useGameSocket(
   roomId: string,
   nickname: string,
-  color: number
+  color: number,
+  spectator = false
 ): GameSocketApi {
   const socketRef = useRef<ClientSocket | null>(null);
 
@@ -64,7 +65,7 @@ export function useGameSocket(
 
     socket.on("connect", () => {
       setStatus("joining");
-      socket.emit("joinRoom", { roomId, nickname, color });
+      socket.emit("joinRoom", { roomId, nickname, color, spectator });
     });
 
     socket.on("joined", (state) => {
@@ -126,7 +127,7 @@ export function useGameSocket(
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [roomId, nickname, color]);
+  }, [roomId, nickname, color, spectator]);
 
   const startGame = useCallback(() => {
     socketRef.current?.emit("startGame");

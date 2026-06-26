@@ -91,6 +91,8 @@ export interface JoinRoomPayload {
   nickname: string;
   /** Index into PLAYER_COLORS. */
   color: number;
+  /** Admin spectator — watches without becoming a competing player. */
+  spectator?: boolean;
 }
 
 export interface PlayerMovePayload {

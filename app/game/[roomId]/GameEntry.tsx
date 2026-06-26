@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import GameClient from "./GameClient";
 import { PLAYER_COLORS } from "@/lib/gameConfig";
@@ -14,11 +14,37 @@ export default function GameEntry({
   initialNick: string;
   initialColor: number;
 }) {
-  // If we arrived with a nickname (from the home page), go straight in.
+  // Is this browser a logged-in admin? /api/admin/me sits behind the Basic Auth
+  // gate, so it only succeeds when the browser has valid (cached) credentials.
+  const [adminChecked, setAdminChecked] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/admin/me")
+      .then((r) => setIsAdmin(r.ok))
+      .catch(() => setIsAdmin(false))
+      .finally(() => setAdminChecked(true));
+  }, []);
+
   const [entered, setEntered] = useState(!!initialNick);
   const [nickname, setNickname] = useState(initialNick);
   const [draft, setDraft] = useState(initialNick);
   const [color, setColor] = useState(initialColor);
+
+  if (!adminChecked) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-slate-950 text-white">
+        <p className="animate-pulse text-lg">확인 중…</p>
+      </div>
+    );
+  }
+
+  // Admins always join as spectators (watch only, can start the game).
+  if (isAdmin) {
+    return (
+      <GameClient roomId={roomId} nickname="관리자" color={0} spectator />
+    );
+  }
 
   if (entered && nickname) {
     return <GameClient roomId={roomId} nickname={nickname} color={color} />;

@@ -29,12 +29,22 @@ export function registerSocketServer(io: IO) {
     // Which room this socket belongs to (set on joinRoom).
     let joinedRoomId: string | null = null;
 
-    socket.on("joinRoom", ({ roomId, nickname, color }) => {
+    socket.on("joinRoom", ({ roomId, nickname, color, spectator }) => {
       const room = store.getRoom(roomId);
       if (!room) {
         socket.emit("joinError", "존재하지 않는 방입니다.");
         return;
       }
+
+      // Spectators (admins) only watch — join the room for broadcasts but never
+      // become a player, so they bypass the "started"/"full" checks too.
+      if (spectator) {
+        joinedRoomId = roomId;
+        socket.join(roomId);
+        socket.emit("joined", { ...toPublicState(room), selfId: socket.id });
+        return;
+      }
+
       if (room.gameState !== "waiting") {
         socket.emit("joinError", "이미 시작된 게임입니다.");
         return;

@@ -81,12 +81,14 @@ export default function GameClient({
   roomId,
   nickname,
   color,
+  spectator = false,
 }: {
   roomId: string;
   nickname: string;
   color: number;
+  spectator?: boolean;
 }) {
-  const game = useGameSocket(roomId, nickname, color);
+  const game = useGameSocket(roomId, nickname, color, spectator);
   const {
     status,
     error,
@@ -228,6 +230,7 @@ export default function GameClient({
           correctAnswer={reveal ? reveal.correctAnswer : null}
           tileMode={tileMode}
           revealAt={revealAt}
+          spectator={spectator}
           onMove={sendMove}
         />
       </Canvas>
@@ -289,7 +292,14 @@ export default function GameClient({
         {/* Top bar */}
         <div className="flex items-start justify-between">
           <div className="rounded-lg bg-black/50 px-3 py-2 text-sm backdrop-blur">
-            <div className="font-semibold">{room.title}</div>
+            <div className="flex items-center gap-2 font-semibold">
+              {room.title}
+              {spectator && (
+                <span className="rounded-full bg-fuchsia-600 px-2 py-0.5 text-xs">
+                  👁 관람 모드
+                </span>
+              )}
+            </div>
             <div className="text-slate-300">테마: {room.theme}</div>
             <div className="text-slate-300">
               생존 {aliveCount} / {players.length}명
@@ -416,12 +426,19 @@ export default function GameClient({
                 <p className="text-sm text-slate-500">참가자 없음</p>
               )}
             </div>
-            <button
-              onClick={handleStart}
-              className="w-full rounded-lg bg-sky-600 py-3 font-semibold transition hover:bg-sky-500"
-            >
-              게임 시작
-            </button>
+            {spectator ? (
+              <button
+                onClick={handleStart}
+                disabled={players.length === 0}
+                className="w-full rounded-lg bg-fuchsia-600 py-3 font-semibold transition hover:bg-fuchsia-500 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                게임 시작 (관리자)
+              </button>
+            ) : (
+              <p className="rounded-lg bg-slate-800 py-3 text-center text-sm text-slate-400">
+                관리자가 시작하기를 기다리는 중…
+              </p>
+            )}
             <p className="mt-2 text-center text-xs text-slate-500">
               친구에게 이 페이지 URL을 공유하세요
             </p>

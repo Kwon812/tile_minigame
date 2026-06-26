@@ -1,10 +1,9 @@
 // Authoritative in-memory game store.
 //
-// Rooms and players live ONLY here (never in the database). Both the Next.js
-// route handlers (which create games) and the Socket.IO server (which runs them)
-// import this module, but Next bundles route handlers separately from the custom
-// server, so a plain module-level singleton would produce two different stores.
-// We pin the singleton to `globalThis` so both module systems share one instance.
+// Rooms and players live ONLY here (never in the database). This module is
+// loaded only by the standalone Socket.IO server (Render), which runs as a
+// single process — so a plain module-level singleton is all we need. (The Vercel
+// app never imports this; it proxies game creation/listing over HTTP.)
 
 import type {
   ArenaConfig,
@@ -86,10 +85,8 @@ class GameStore {
   }
 }
 
-// ---- globalThis singleton ----
-const globalForStore = globalThis as unknown as { __gameStore?: GameStore };
-export const store: GameStore = globalForStore.__gameStore ?? new GameStore();
-if (!globalForStore.__gameStore) globalForStore.__gameStore = store;
+// Single in-memory store for the socket-server process.
+export const store = new GameStore();
 
 // ---- view helpers ----
 
