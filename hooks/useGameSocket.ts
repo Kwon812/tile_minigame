@@ -11,7 +11,7 @@ import type {
   RoomPublicState,
   RoundResultPayload,
   ServerToClientEvents,
-} from "./types";
+} from "@/lib/types";
 
 type ClientSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 

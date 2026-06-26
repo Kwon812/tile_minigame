@@ -1,4 +1,4 @@
-import GameEntry from "./GameEntry";
+import GameEntry from "@/components/game/GameEntry";
 
 export default async function GamePage({
   params,
