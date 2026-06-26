@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Canvas } from "@react-three/fiber";
 import Scene from "./Arena";
+import Joystick, { type MoveVec } from "./Joystick";
 import { useGameSocket } from "@/lib/useGameSocket";
 import { PLAYER_COLORS, ZONE_COLORS } from "@/lib/gameConfig";
 import { sfx, setMuted } from "@/lib/sound";
@@ -106,6 +107,10 @@ export default function GameClient({
     startGame,
     sendMove,
   } = game;
+
+  // Shared analog input vector written by the touch joystick, read by the 3D
+  // LocalPlayer each frame.
+  const moveVec = useRef<MoveVec>({ x: 0, z: 0 });
 
   const remaining = useCountdown(question?.endsAt, serverOffset);
   const count = useRoundStart(question?.startsAt, serverOffset);
@@ -236,9 +241,13 @@ export default function GameClient({
           tileMode={tileMode}
           revealAt={revealAt}
           spectator={spectator}
+          moveVec={moveVec}
           onMove={sendMove}
         />
       </Canvas>
+
+      {/* Touch joystick — shown on coarse-pointer devices while moving is allowed */}
+      {!spectator && <Joystick moveVec={moveVec} visible={canMove} />}
 
       {/* Low-time red vignette */}
       {lowTime && (

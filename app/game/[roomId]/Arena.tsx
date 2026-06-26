@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import type { ArenaConfig, PlayerView } from "@/lib/types";
+import type { MoveVec } from "./Joystick";
 import {
   PLAYER_SPEED,
   PLAYER_COLORS,
@@ -41,6 +42,8 @@ export interface SceneProps {
   revealAt: number | null;
   /** Admin spectator — overview camera, no local player. */
   spectator: boolean;
+  /** Touch-joystick analog input, added to keyboard input each frame. */
+  moveVec: React.MutableRefObject<MoveVec>;
   onMove: (x: number, y: number, z: number, rotationY: number) => void;
 }
 
@@ -291,12 +294,14 @@ function LocalPlayer({
   player,
   canMove,
   revealAt,
+  moveVec,
   onMove,
 }: {
   arena: ArenaConfig;
   player: PlayerView;
   canMove: boolean;
   revealAt: number | null;
+  moveVec: React.MutableRefObject<MoveVec>;
   onMove: SceneProps["onMove"];
 }) {
   const ref = useRef<THREE.Group>(null);
@@ -346,13 +351,20 @@ function LocalPlayer({
       if (k["KeyS"] || k["ArrowDown"]) dz += 1;
       if (k["KeyA"] || k["ArrowLeft"]) dx -= 1;
       if (k["KeyD"] || k["ArrowRight"]) dx += 1;
+      // Touch joystick (analog) adds on top of the keyboard.
+      dx += moveVec.current.x;
+      dz += moveVec.current.z;
     }
     const moving = dx !== 0 || dz !== 0;
-    if (dx !== 0 || dz !== 0) {
+    if (moving) {
       movedThisRound.current = true; // input taken over — stop following server
+      // Cap diagonal/combined speed at 1; keep analog magnitude below that so
+      // a partial joystick push moves proportionally slower.
       const len = Math.hypot(dx, dz);
-      dx /= len;
-      dz /= len;
+      if (len > 1) {
+        dx /= len;
+        dz /= len;
+      }
       pos.current.x = THREE.MathUtils.clamp(
         pos.current.x + dx * PLAYER_SPEED * delta,
         bounds.minX,
@@ -442,6 +454,7 @@ export default function Scene({
   tileMode,
   revealAt,
   spectator,
+  moveVec,
   onMove,
 }: SceneProps) {
   const self = spectator ? null : players.find((p) => p.id === selfId) ?? null;
@@ -481,6 +494,7 @@ export default function Scene({
           player={self}
           canMove={canMove}
           revealAt={revealAt}
+          moveVec={moveVec}
           onMove={onMove}
         />
       )}
