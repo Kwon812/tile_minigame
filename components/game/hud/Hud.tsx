@@ -85,9 +85,15 @@ export function Hud({
                   라운드 {question.round} / {question.totalRounds}
                 </div>
                 <div
-                  className={`text-3xl font-bold ${
+                  // `key` remounts the node each tick, and translateZ promotes
+                  // it to its own layer — together these stop iOS Safari from
+                  // ghosting the previous second's number over the new one (a
+                  // backdrop-blur + opacity-animation compositing bug).
+                  key={remaining}
+                  className={`text-3xl font-bold tabular-nums ${
                     remaining <= 5 ? "animate-pulse text-red-400" : "text-sky-300"
                   }`}
+                  style={{ transform: "translateZ(0)" }}
                 >
                   {remaining}s
                 </div>

@@ -10,12 +10,14 @@ export function QuizEditModal({
   themes,
   onClose,
   onSave,
+  onDelete,
 }: {
   editForm: EditForm | null;
   setEditForm: Dispatch<SetStateAction<EditForm | null>>;
   themes: string[];
   onClose: () => void;
   onSave: () => void;
+  onDelete: () => void;
 }) {
   if (!editForm) return null;
   return (
@@ -145,32 +147,50 @@ export function QuizEditModal({
                 <option value="hard">hard</option>
               </select>
             </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={editForm.is_active}
-                onChange={(e) =>
-                  setEditForm({ ...editForm, is_active: e.target.checked })
+            <div className="text-sm">
+              <span className="mb-1 block text-slate-400">활성화</span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={editForm.is_active}
+                onClick={() =>
+                  setEditForm({ ...editForm, is_active: !editForm.is_active })
                 }
-              />
-              활성화
-            </label>
+                className={`relative inline-flex h-7 w-14 items-center rounded-full transition ${
+                  editForm.is_active ? "bg-green-600" : "bg-slate-600"
+                }`}
+              >
+                <span
+                  className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition ${
+                    editForm.is_active ? "translate-x-8" : "translate-x-1"
+                  }`}
+                />
+              </button>
+            </div>
           </div>
         </div>
 
-        <div className="mt-6 flex justify-end gap-2">
+        <div className="mt-6 flex items-center justify-between gap-2">
           <button
-            onClick={onClose}
-            className="rounded-lg bg-slate-700 px-4 py-2 text-sm transition hover:bg-slate-600"
+            onClick={onDelete}
+            className="rounded-lg bg-red-900/40 px-4 py-2 text-sm font-semibold text-red-300 transition hover:bg-red-900/70"
           >
-            취소
+            삭제
           </button>
-          <button
-            onClick={onSave}
-            className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold transition hover:bg-sky-500"
-          >
-            저장
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={onClose}
+              className="rounded-lg bg-slate-700 px-4 py-2 text-sm transition hover:bg-slate-600"
+            >
+              취소
+            </button>
+            <button
+              onClick={onSave}
+              className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold transition hover:bg-sky-500"
+            >
+              저장
+            </button>
+          </div>
         </div>
       </div>
     </div>

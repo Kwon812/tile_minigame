@@ -11,9 +11,7 @@ export function QuizList({
   loading,
   listFilter,
   setListFilter,
-  onToggle,
   onEdit,
-  onDelete,
 }: {
   quizzes: Quiz[];
   filteredQuizzes: Quiz[];
@@ -21,9 +19,8 @@ export function QuizList({
   loading: boolean;
   listFilter: string;
   setListFilter: Dispatch<SetStateAction<string>>;
-  onToggle: (q: Quiz) => void;
+  /** Open the manage/edit modal for a quiz (triggered by clicking its row). */
   onEdit: (q: Quiz) => void;
-  onDelete: (id: string) => void;
 }) {
   return (
     <section className="rounded-2xl bg-slate-900 p-6">
@@ -64,9 +61,11 @@ export function QuizList({
       ) : (
         <div className="space-y-2">
           {filteredQuizzes.map((q) => (
-            <div
+            <button
               key={q.id}
-              className="flex items-start justify-between gap-4 rounded-lg bg-slate-800 p-3"
+              type="button"
+              onClick={() => onEdit(q)}
+              className="flex w-full items-start justify-between gap-4 rounded-lg bg-slate-800 p-3 text-left transition hover:bg-slate-700"
             >
               <div className="min-w-0">
                 <p className="font-medium">{q.question}</p>
@@ -86,29 +85,17 @@ export function QuizList({
                   {q.theme} · {q.difficulty}
                 </p>
               </div>
-              <div className="flex shrink-0 flex-col items-end gap-1">
-                <button
-                  onClick={() => onToggle(q)}
-                  className={`rounded px-2 py-1 text-xs ${
-                    q.is_active ? "bg-green-700" : "bg-slate-600 text-slate-300"
-                  }`}
-                >
-                  {q.is_active ? "활성" : "비활성"}
-                </button>
-                <button
-                  onClick={() => onEdit(q)}
-                  className="rounded px-2 py-1 text-xs text-sky-300 hover:bg-sky-900/40"
-                >
-                  수정
-                </button>
-                <button
-                  onClick={() => onDelete(q.id)}
-                  className="rounded px-2 py-1 text-xs text-red-400 hover:bg-red-900/40"
-                >
-                  삭제
-                </button>
-              </div>
-            </div>
+              {/* Read-only status — manage actions live in the modal */}
+              <span
+                className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${
+                  q.is_active
+                    ? "bg-green-700 text-white"
+                    : "bg-slate-600 text-slate-300"
+                }`}
+              >
+                {q.is_active ? "활성" : "비활성"}
+              </span>
+            </button>
           ))}
           {filteredQuizzes.length === 0 && (
             <p className="text-slate-500">

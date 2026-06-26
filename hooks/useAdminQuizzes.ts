@@ -7,7 +7,6 @@ import {
   deleteQuiz,
   listQuizzes,
   sanitizeOptions,
-  toggleQuizActive,
   updateQuiz,
 } from "@/services/quizService";
 
@@ -96,23 +95,6 @@ export function useAdminQuizzes(onMessage: (m: string) => void) {
     [form, onMessage, reload]
   );
 
-  const remove = useCallback(
-    async (id: string) => {
-      if (!confirm("이 문제를 삭제할까요?")) return;
-      await deleteQuiz(id);
-      reload();
-    },
-    [reload]
-  );
-
-  const toggleActive = useCallback(
-    async (q: Quiz) => {
-      await toggleQuizActive(q);
-      reload();
-    },
-    [reload]
-  );
-
   const startEdit = useCallback((q: Quiz) => {
     setEditingId(q.id);
     setEditForm({
@@ -152,6 +134,16 @@ export function useAdminQuizzes(onMessage: (m: string) => void) {
     reload();
   }, [editingId, editForm, onMessage, closeEdit, reload]);
 
+  // Delete the quiz currently open in the edit modal, then close it.
+  const deleteEditing = useCallback(async () => {
+    if (!editingId) return;
+    if (!confirm("이 문제를 삭제할까요?")) return;
+    await deleteQuiz(editingId);
+    closeEdit();
+    onMessage("문제가 삭제되었습니다.");
+    reload();
+  }, [editingId, closeEdit, onMessage, reload]);
+
   return {
     quizzes,
     loading,
@@ -170,7 +162,6 @@ export function useAdminQuizzes(onMessage: (m: string) => void) {
     startEdit,
     closeEdit,
     saveEdit,
-    remove,
-    toggleActive,
+    deleteEditing,
   };
 }

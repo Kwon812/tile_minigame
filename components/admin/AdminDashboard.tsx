@@ -59,9 +59,7 @@ export default function AdminDashboard() {
           loading={quiz.loading}
           listFilter={quiz.listFilter}
           setListFilter={quiz.setListFilter}
-          onToggle={quiz.toggleActive}
           onEdit={quiz.startEdit}
-          onDelete={quiz.remove}
         />
       </div>
 
@@ -71,6 +69,7 @@ export default function AdminDashboard() {
         themes={quiz.themes}
         onClose={quiz.closeEdit}
         onSave={quiz.saveEdit}
+        onDelete={quiz.deleteEditing}
       />
     </div>
   );
